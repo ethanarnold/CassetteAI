@@ -132,60 +132,79 @@ _ON_TARGET_CLASSES: dict[str, list[str]] = {
 
 _CRITICAL_FLAGS = {"CRYPTIC_POLYA", "HOMOPOLYMER"}
 
+# Named Sei classes (exclude unnamed Group-XX from specificity calculations)
+_NAMED_CLASS_PREFIX_EXCLUDE = "Group-"
+
 
 def rerank_candidates(
     sequences_with_scores: list[dict],
     target_tissue: str,
 ) -> list[dict]:
-    """Re-rank candidates by tissue-specific on-target score and specificity.
+    """Re-rank candidates to maximize the gap between on-target and off-target.
+
+    Optimizes for histogram appearance: tall target bar, small everything else.
 
     For each candidate:
-      1. Compute on_target_score = max(scores for on-target classes).
-      2. Compute specificity_ratio = on_target / max(other class scores).
-      3. Add pathology flags via compute_pathology_flags().
-      4. Sort: non-critical flags first, then specificity_ratio DESC, on_target DESC.
+      1. Filter to named Sei classes only (exclude Group-XX).
+      2. on_target_score = max(scores for on-target classes).
+      3. off_target_max = max(scores for all other named classes).
+      4. gap = on_target - off_target_max (positive = target dominates).
+      5. specificity_ratio = on_target / off_target_max.
+      6. Add pathology flags.
+      7. Sort: no critical flags first, then gap DESC.
 
-    Returns list of dicts with added keys: on_target_score, specificity_ratio,
-    gc_pct, cpg_density, flags, has_critical_flag.
+    Returns list of dicts with added keys: on_target_score, off_target_max,
+    gap, specificity_ratio, gc_pct, cpg_density, flags, has_critical_flag.
     """
     on_target_keys = set(_ON_TARGET_CLASSES.get(target_tissue, []))
     ranked: list[dict] = []
 
     for item in sequences_with_scores:
-        scores = item.get("sei_scores", {})
+        raw_scores = item.get("sei_scores", {})
         gc_pct, cpg_dens, flags = compute_pathology_flags(item["sequence"])
+
+        # Only consider named Sei classes for specificity
+        scores = {
+            k: v for k, v in raw_scores.items()
+            if not k.startswith(_NAMED_CLASS_PREFIX_EXCLUDE)
+        }
 
         # On-target score = max across tissue-relevant classes
         on_target = max(
             (scores.get(k, 0.0) for k in on_target_keys), default=0.0
         )
 
-        # Specificity = on_target / max(all other scores)
-        other_max = max(
+        # Off-target max = highest score among non-target named classes
+        off_target_max = max(
             (v for k, v in scores.items() if k not in on_target_keys),
             default=1e-9,
         )
-        specificity = on_target / max(other_max, 1e-9)
+
+        # Gap: positive means target bar is taller than everything else
+        gap = on_target - max(off_target_max, 1e-9)
+
+        specificity = on_target / max(off_target_max, 1e-9)
 
         has_critical = bool(set(flags) & _CRITICAL_FLAGS)
-        combined = on_target * specificity
 
         ranked.append({
             **item,
             "on_target_score": round(on_target, 4),
+            "off_target_max": round(off_target_max, 4),
+            "gap": round(gap, 4),
             "specificity_ratio": round(specificity, 4),
-            "combined_score": round(combined, 4),
+            "combined_score": round(on_target * specificity, 4),
             "gc_pct": round(gc_pct, 2),
             "cpg_density": round(cpg_dens, 4),
             "flags": flags,
             "has_critical_flag": has_critical,
         })
 
-    # Sort: non-critical first, then by combined score (on_target * specificity) DESC
+    # Sort: no critical flags first, then by gap (on_target - off_target) DESC
     ranked.sort(
         key=lambda x: (
             not x["has_critical_flag"],  # True (no critical) sorts first
-            x["combined_score"],
+            x["gap"],
         ),
         reverse=True,
     )

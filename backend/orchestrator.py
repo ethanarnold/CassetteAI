@@ -204,7 +204,7 @@ async def run_pipeline(
     yield {
         "type": "status",
         "stage": "generating",
-        "message": f"Generating 200 candidate elements for {cell_type}...",
+        "message": f"Generating 3000 candidate elements for {cell_type}...",
     }
 
     sequences: list[str]
@@ -216,8 +216,8 @@ async def run_pipeline(
 
             generate_fn = modal.Function.from_name("dna-diffusion", "generate_elements")
             logger.debug("── DNA-Diffusion INPUT ──")
-            logger.debug("  cell_type=%s  n_samples=200", cell_type)
-            sequences = await asyncio.to_thread(generate_fn.remote, cell_type, 200)
+            logger.debug("  cell_type=%s  n_samples=3000", cell_type)
+            sequences = await asyncio.to_thread(generate_fn.remote, cell_type, 3000)
         except Exception as exc:
             yield {
                 "type": "error",

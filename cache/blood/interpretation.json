@@ -2,18 +2,20 @@
   "ranking": [
     {
       "rank": 1,
-      "sequence": "ATGTCTAGCTTCCTCCTTTCAATTCCCCTTTGAGTTTGACAACTAGTCTATGTCGTTTGTTCTTTGCAAATGCTCACATGGATGAGAACCTTATCAGGAACTGGAAAACCTCTCCTTTGGCAGTTGAAAAGGGTTTGGCTAGAAGCAAACATCAGCCAGGATTGGGGACCAAACTATCTGAGATGCACTTCTTCTAACTT",
-      "sequence_display": "ATGTCTAGCTTCCTCCTTTC...AGATGCACTTCTTCTAACTT",
-      "on_target_score": 6.4809,
-      "specificity_ratio": 0.9721,
-      "combined_score": 6.3001,
-      "top_class": "P Promoter",
-      "flags": []
+      "sequence": "GGGTGCCCTGTTCACGTGACGTCGCCCGCTCAGCAAACAGCAAGTTCCCGCCTACTTCAGGAAGCATCGCGCGCGAGTGAATACTCATGATGAGATAACCAGCACGTGGTCACGCGCAATCCTGGCCCCGTCCCCTGTAGAGCGCACCTATAGCGGAGCCTGGCTAGCCTGAGCCGGCGCCTTGGATATACAGGTAACCA",
+      "sequence_display": "GGGTGCCCTGTTCACGTGAC...CTTGGATATACAGGTAACCA",
+      "on_target_score": 15.1125,
+      "specificity_ratio": 0.7134,
+      "combined_score": 10.7814,
+      "top_class": "E4 Multi-tissue",
+      "flags": [
+        "HIGH_CPG"
+      ]
     }
   ],
   "recommendation": {
     "rank": 1,
-    "explanation": "This candidate achieves strong blood-tissue relevance by simultaneously activating B-cell-like (E5, 6.48) and Monocyte/Macrophage (E7, 5.48) enhancer classes alongside a robust Promoter signature (6.67), suggesting it encodes a broad hematopoietic regulatory element with promoter-proximal logic rather than a pure distal enhancer. The specificity ratio of 0.97 is modest because the element also activates Multi-tissue (E4, 6.41) and Weak epithelial (E6, 5.69) classes at appreciable levels, indicating some off-target regulatory potential in non-blood lineages that should be evaluated in vivo, particularly in liver and epithelial tissues commonly transduced by AAV serotypes. No synthesis or epigenetic flags were raised (GC 42.5%, no homopolymers, CpG, or cryptic polyA issues), making this element manufacturing-friendly, though the sub-1.0 specificity ratio warrants pairing with a blood-tropic AAV capsid to mitigate the multi-tissue activity and achieve acceptable therapeutic specificity.",
+    "explanation": "This candidate's blood-relevant activity is driven by the E12 Erythroblast-like class (score 15.11), consistent with hematopoietic regulatory logic, but the top-scoring Sei class is actually E4 Multi-tissue (21.18), with strong CTCF/Cohesin insulator (20.36) and Promoter (18.61) signatures, indicating a broadly active element rather than a blood-specific enhancer. The specificity ratio of 0.71 confirms substantial off-target potential\u2014particularly in epithelial (E6: 18.02) and stem cell (E1: 11.39) contexts\u2014making this element unsuitable for in vivo AAV delivery where tight blood-lineage restriction is required without additional engineering. Additionally, the HIGH_CPG flag raises concern for CpG methylation-mediated silencing over time in vivo, which could attenuate long-term transgene expression in hematopoietic cells.",
     "cassette": {
       "elements": [
         "5'ITR",
@@ -35,10 +37,10 @@
       "aav_limit_bp": 4700,
       "headroom_bp": 2180,
       "promoter": "minTBG",
-      "enhancer_sequence": "ATGTCTAGCTTCCTCCTTTCAATTCCCCTTTGAGTTTGACAACTAGTCTATGTCGTTTGTTCTTTGCAAATGCTCACATGGATGAGAACCTTATCAGGAACTGGAAAACCTCTCCTTTGGCAGTTGAAAAGGGTTTGGCTAGAAGCAAACATCAGCCAGGATTGGGGACCAAACTATCTGAGATGCACTTCTTCTAACTT"
+      "enhancer_sequence": "GGGTGCCCTGTTCACGTGACGTCGCCCGCTCAGCAAACAGCAAGTTCCCGCCTACTTCAGGAAGCATCGCGCGCGAGTGAATACTCATGATGAGATAACCAGCACGTGGTCACGCGCAATCCTGGCCCCGTCCCCTGTAGAGCGCACCTATAGCGGAGCCTGGCTAGCCTGAGCCGGCGCCTTGGATATACAGGTAACCA"
     }
   },
-  "summary": "This synthetic regulatory element drives strong expression in blood cell types\u2014especially B cells and monocytes\u2014with clean manufacturability, but its moderate cross-tissue activity means it should be paired with a blood-targeted AAV capsid to minimize off-target expression.",
+  "summary": "This element activates blood-related (erythroblast) regulatory programs but is too broadly active across multiple tissues and carries a methylation silencing risk, so it would likely need further optimization before use as a blood-specific regulatory element in gene therapy.",
   "cassette": {
     "elements": [
       "5'ITR",
@@ -60,6 +62,6 @@
     "aav_limit_bp": 4700,
     "headroom_bp": 2180,
     "promoter": "minTBG",
-    "enhancer_sequence": "ATGTCTAGCTTCCTCCTTTCAATTCCCCTTTGAGTTTGACAACTAGTCTATGTCGTTTGTTCTTTGCAAATGCTCACATGGATGAGAACCTTATCAGGAACTGGAAAACCTCTCCTTTGGCAGTTGAAAAGGGTTTGGCTAGAAGCAAACATCAGCCAGGATTGGGGACCAAACTATCTGAGATGCACTTCTTCTAACTT"
+    "enhancer_sequence": "GGGTGCCCTGTTCACGTGACGTCGCCCGCTCAGCAAACAGCAAGTTCCCGCCTACTTCAGGAAGCATCGCGCGCGAGTGAATACTCATGATGAGATAACCAGCACGTGGTCACGCGCAATCCTGGCCCCGTCCCCTGTAGAGCGCACCTATAGCGGAGCCTGGCTAGCCTGAGCCGGCGCCTTGGATATACAGGTAACCA"
   }
 }
