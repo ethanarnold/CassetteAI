@@ -12,20 +12,26 @@ const DISPLAY_CLASSES = [
   { key: 'E7 Monocyte / Macrophage',  group: 'Blood',    label: 'Mono.'    },
   { key: 'E11 T-cell',                group: 'Blood',    label: 'T-cell'   },
   { key: 'E12 Erythroblast-like',     group: 'Blood',    label: 'Erythro.' },
-  { key: 'E2 Multi-tissue',           group: 'Multi',    label: 'Multi 1'  },
-  { key: 'E4 Multi-tissue',           group: 'Multi',    label: 'Multi 2'  },
   { key: 'E1 Stem cell',              group: 'Stem',     label: 'Stem'     },
-  { key: 'E6 Weak epithelial',        group: 'Epithl.',  label: 'Epithl.'  },
   { key: 'P Promoter',                group: 'Promoter', label: 'Promoter' },
 ]
+
+/**
+ * Hardcoded mapping from tissue key (from orchestrator) to the Sei class
+ * used for sorting and highlighting.
+ */
+const TISSUE_SORT_CLASS = {
+  liver:   'E9 Liver / Intestine',
+  cardiac: 'E5 B-cell-like',        // K562 proxy — best blood/cardiac marker
+  neural:  'E3 Brain / Melanocyte',
+  blood:   'E5 B-cell-like',
+}
 
 const GROUP_COLORS = {
   Liver:    '#0891b2',
   Brain:    '#7c3aed',
   Blood:    '#dc2626',
-  Multi:    '#059669',
   Stem:     '#d97706',
-  'Epithl.':'#9333ea',
   Promoter: '#64748b',
   Target:   '#22d3ee',
 }
@@ -61,37 +67,25 @@ function scoreToColor(t) {
 const CELL_W = 42
 const CELL_H = 26
 
-export default function Heatmap({ scoringData, interpretationData }) {
+export default function Heatmap({ tissue, scoringData, interpretationData }) {
   const [tooltip, setTooltip] = useState(null)
 
-  const { top10, displayClasses, normalize, primaryClass } = useMemo(() => {
+  const { top10, displayClasses, normalize, sortClass, highlightClass } = useMemo(() => {
     if (!scoringData || scoringData.length === 0) {
-      return { top10: [], displayClasses: DISPLAY_CLASSES, normalize: () => 0.5, primaryClass: null }
+      return { top10: [], displayClasses: DISPLAY_CLASSES, normalize: () => 0.5, sortClass: null, highlightClass: null }
     }
 
-    // Determine the most common top_class across all candidates
-    const counts = {}
-    scoringData.forEach((d) => {
-      counts[d.top_class] = (counts[d.top_class] || 0) + 1
-    })
-    const primaryClass =
-      Object.entries(counts).sort((a, b) => b[1] - a[1])[0]?.[0] ||
-      'E9 Liver / Intestine'
+    // Use hardcoded tissue → Sei class mapping for sorting and highlighting
+    const highlightClass = TISSUE_SORT_CLASS[tissue] || 'E9 Liver / Intestine'
+    const sortClass = highlightClass
 
-    // Build columns: ensure the primary target class is first
-    const baseClasses = DISPLAY_CLASSES.filter((c) => c.key !== primaryClass)
-    const inBase = DISPLAY_CLASSES.find((c) => c.key === primaryClass)
-    const targetEntry = inBase || {
-      key: primaryClass,
-      group: 'Target',
-      label: primaryClass.split(' ').slice(-1)[0].substring(0, 8),
-    }
-    const displayClasses = [targetEntry, ...baseClasses]
+    // Keep column order as defined — no reordering
+    const displayClasses = DISPLAY_CLASSES
 
-    // Sort all candidates by primary class score, take top 10
+    // Sort all candidates by dominant class score, take top 10
     const sorted = [...scoringData].sort(
       (a, b) =>
-        (b.sei_scores?.[primaryClass] ?? 0) - (a.sei_scores?.[primaryClass] ?? 0)
+        (b.sei_scores?.[sortClass] ?? 0) - (a.sei_scores?.[sortClass] ?? 0)
     )
     const top10 = sorted.slice(0, 10)
 
@@ -104,8 +98,8 @@ export default function Heatmap({ scoringData, interpretationData }) {
     const range = maxVal - minVal || 1
     const normalize = (v) => (v - minVal) / range
 
-    return { top10, displayClasses, normalize, primaryClass }
-  }, [scoringData])
+    return { top10, displayClasses, normalize, sortClass, highlightClass }
+  }, [tissue, scoringData])
 
   if (!scoringData || scoringData.length === 0) {
     return (
@@ -144,7 +138,7 @@ export default function Heatmap({ scoringData, interpretationData }) {
           Tissue Specificity Scores
         </h2>
         <span className="text-xs" style={{ color: '#475569' }}>
-          top 10 of {scoringData.length} candidates · sorted by {primaryClass}
+          top 10 of {scoringData.length} candidates · sorted by {sortClass}
         </span>
       </div>
 
@@ -203,8 +197,8 @@ export default function Heatmap({ scoringData, interpretationData }) {
                   style={{
                     width: `${CELL_W}px`,
                     fontSize: '9px',
-                    color: c.key === primaryClass ? '#22d3ee' : '#64748b',
-                    fontWeight: c.key === primaryClass ? 700 : 400,
+                    color: c.key === highlightClass ? '#22d3ee' : '#64748b',
+                    fontWeight: c.key === highlightClass ? 700 : 400,
                     paddingBottom: '4px',
                   }}
                 >
@@ -232,7 +226,7 @@ export default function Heatmap({ scoringData, interpretationData }) {
                   const score = cand.sei_scores?.[c.key] ?? 0
                   const t = normalize(score)
                   const bg = scoreToColor(t)
-                  const isTarget = c.key === primaryClass
+                  const isTarget = c.key === highlightClass
                   return (
                     <td
                       key={ci}

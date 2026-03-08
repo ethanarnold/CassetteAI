@@ -222,6 +222,39 @@ async def interpret_scores(
             }
         )
 
+    # Pre-filter: sort by specificity_ratio and keep top 20 candidates.
+    # The prompt only needs top 5; sending 20 gives Claude enough to re-rank.
+    annotated.sort(key=lambda x: x.get("specificity_ratio", 0), reverse=True)
+    annotated = annotated[:20]
+
+    # Trim sei_scores to tissue-relevant classes + top scorers to reduce tokens.
+    _TISSUE_CLASSES: dict[str, list[str]] = {
+        "liver": [
+            "E9 Liver / Intestine", "TF1 NANOG / FOXA1",
+            "TF3 FOXA1 / AR / ESR1", "TF2 CEBPB", "P Promoter",
+        ],
+        "cardiac": [
+            "E12 Erythroblast-like", "P Promoter",
+            "E4 Multi-tissue", "E2 Multi-tissue",
+        ],
+        "neural": [
+            "E3 Brain / Melanocyte", "E10 Brain",
+            "E4 Multi-tissue", "P Promoter",
+        ],
+        "blood": [
+            "E11 T-cell", "E5 B-cell-like", "E12 Erythroblast-like",
+            "P Promoter",
+        ],
+    }
+    keep_classes = set(_TISSUE_CLASSES.get(target_tissue, []))
+    for item in annotated:
+        scores = item.get("sei_scores", {})
+        # Always include tissue-relevant classes + top 5 by value
+        top_keys = sorted(scores, key=lambda k: scores[k], reverse=True)[:5]
+        trimmed = {k: round(v, 4) for k, v in scores.items()
+                   if k in keep_classes or k in top_keys}
+        item["sei_scores"] = trimmed
+
     user_content = (
         f"Target tissue: {target_tissue}\n\n"
         f"Candidate elements (JSON):\n```json\n"

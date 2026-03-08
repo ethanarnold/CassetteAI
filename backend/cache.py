@@ -1,5 +1,6 @@
 import hashlib
 import json
+import re
 from pathlib import Path
 
 # Relative to project root (one level up from backend/)
@@ -28,7 +29,7 @@ def cache_key(prompt: str) -> str:
     """
     normalized = prompt.lower().strip()
     for synonym, canonical in _TISSUE_MAP.items():
-        if synonym in normalized:
+        if re.search(r'\b' + synonym + r'\b', normalized):
             return canonical
     return hashlib.sha256(normalized.encode()).hexdigest()[:16]
 

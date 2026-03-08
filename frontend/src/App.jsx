@@ -121,6 +121,7 @@ export default function App() {
             }}
           >
             <Heatmap
+              tissue={results?.tissue}
               scoringData={results?.scoring}
               interpretationData={results?.interpretation}
             />

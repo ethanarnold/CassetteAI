@@ -7,10 +7,14 @@ yields SSE-compatible status events as an async generator.
 
 import asyncio
 import json
+import logging
 import os
 import re
 from collections.abc import AsyncGenerator
 from typing import Any
+
+logger = logging.getLogger("cassetteai.pipeline")
+logging.basicConfig(level=logging.DEBUG, format="%(name)s | %(message)s")
 
 from backend.cache import get_cached, set_cache
 from backend.interpret import compose_cassette, interpret_scores
@@ -206,6 +210,8 @@ async def run_pipeline(
             import modal  # type: ignore[import]
 
             generate_fn = modal.Function.from_name("dna-diffusion", "generate_elements")
+            logger.debug("── DNA-Diffusion INPUT ──")
+            logger.debug("  cell_type=%s  n_samples=200", cell_type)
             sequences = await asyncio.to_thread(generate_fn.remote, cell_type, 200)
         except Exception as exc:
             yield {
@@ -217,6 +223,11 @@ async def run_pipeline(
                 ),
             }
             return
+
+        logger.debug("── DNA-Diffusion OUTPUT ──")
+        logger.debug("  %d sequences generated, first 5:", len(sequences))
+        for i, s in enumerate(sequences[:5]):
+            logger.debug("    [%d] %s...%s", i, s[:30], s[-10:])
 
         generation_data: dict[str, Any] = {
             "sequences": sequences,
@@ -241,6 +252,10 @@ async def run_pipeline(
             import modal  # type: ignore[import]
 
             score_fn = modal.Function.from_name("sei-scorer", "score_elements")
+            logger.debug("── Sei INPUT ──")
+            logger.debug("  Sending %d sequences to Sei scorer", len(sequences))
+            for i, s in enumerate(sequences[:3]):
+                logger.debug("    [%d] %s...%s", i, s[:30], s[-10:])
             scored = await asyncio.to_thread(score_fn.remote, sequences)
         except Exception as exc:
             yield {
@@ -252,6 +267,18 @@ async def run_pipeline(
                 ),
             }
             return
+
+        logger.debug("── Sei OUTPUT (top 20 by top_class score) ──")
+        # Sort by the score of each element's top class, descending
+        ranked = sorted(scored, key=lambda d: max(d["sei_scores"].values()), reverse=True)
+        for i, entry in enumerate(ranked[:20]):
+            top3 = sorted(entry["sei_scores"].items(), key=lambda kv: kv[1], reverse=True)[:3]
+            top3_str = ", ".join(f"{n}: {v:.4f}" for n, v in top3)
+            logger.debug(
+                "    [%d] seq=%s...  top_class=%s  ratio=%.2f  | %s",
+                i, entry["sequence"][:20], entry["top_class"],
+                entry["specificity_ratio"], top3_str,
+            )
 
         set_cache(user_prompt, "scoring", scored)
         cached_score = scored
@@ -285,6 +312,7 @@ async def run_pipeline(
     yield {
         "type": "results",
         "data": {
+            "tissue": tissue,
             "generation": cached_gen,
             "scoring": cached_score,
             "interpretation": cached_interp,
