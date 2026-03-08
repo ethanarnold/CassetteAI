@@ -400,9 +400,9 @@ a gene therapy scientist would understand.
 
 ### 4A. Scaffold
 
-- [ ] Create React app (Vite + React + Tailwind)
-- [ ] Three-panel layout: chat (left 40%) | heatmap (right-top) | cassette (right-bottom)
-- [ ] Dark mode theme (projector-friendly)
+- [x] Create React app (Vite + React + Tailwind)
+- [x] Three-panel layout: chat (left 40%) | heatmap (right-top) | cassette (right-bottom)
+- [x] Dark mode theme (projector-friendly, #0f1117 background)
 
 ### 4B. Chat Component (`Chat.jsx`)
 
@@ -415,10 +415,10 @@ Standard chat interface. User types prompt, Claude responses stream in. Show int
 ```
 
 **Build checklist:**
-- [ ] Message list with user/assistant bubbles
-- [ ] Input box with submit
-- [ ] Streaming response rendering
-- [ ] Pipeline status indicators (generating → scoring → analyzing)
+- [x] Message list with user/assistant bubbles
+- [x] Input box with submit
+- [x] Streaming response rendering
+- [x] Pipeline status indicators (generating → scoring → analyzing)
 
 ### 4C. Heatmap Component (`Heatmap.jsx`)
 
@@ -431,11 +431,11 @@ Sei scores visualized as a heatmap.
 Use Recharts or D3 heatmap. Pre-compute the data shape so rendering is instant.
 
 **Build checklist:**
-- [ ] Render Sei scores as heatmap (Recharts or D3)
-- [ ] X-axis: tissue/cell types (grouped by organ system)
-- [ ] Y-axis: top 10 candidates (ranked by target tissue score)
-- [ ] Color scale: blue (silent) → red (active)
-- [ ] Tooltip on hover showing exact scores
+- [x] Render Sei scores as heatmap (div grid)
+- [x] X-axis: tissue/cell types (grouped by organ system)
+- [x] Y-axis: top 10 candidates (ranked by target tissue score)
+- [x] Color scale: blue (silent) → red (active)
+- [x] Tooltip on hover showing exact scores
 
 ### 4D. Cassette Diagram (`CassetteDiagram.jsx`)
 
@@ -451,21 +451,19 @@ SVG rendering of the final AAV cassette:
 - Label the minimal promoter (e.g., "minTBG")
 - This can be a static SVG component with dynamic text labels
 
-**BioRender integration:** If BioRender has an embeddable component or API, use it for the cassette diagram. If not, build a clean SVG and put BioRender's logo on the "designed with" attribution.
-
 **Build checklist:**
-- [ ] SVG rendering: 5'ITR → enhancer → minP → transgene → polyA → 3'ITR
-- [ ] Color-code the designed enhancer element
-- [ ] Show bp lengths for each component
-- [ ] Total cassette length bar vs 4.7kb AAV packaging limit
-- [ ] Dynamic labels from pipeline output
+- [x] SVG rendering: 5'ITR → enhancer → minP → transgene → polyA → 3'ITR
+- [x] Color-code the designed enhancer element (teal glow)
+- [x] Show bp lengths for each component
+- [x] Total cassette length bar vs 4.7kb AAV packaging limit
+- [x] Dynamic labels from pipeline output
 
 ### 4E. API Integration (`api.js`)
 
 **Build checklist:**
-- [ ] Wire chat to backend `/api/chat`
-- [ ] Parse streaming responses, update UI components progressively
-- [ ] Pass Sei scores to Heatmap, cassette data to CassetteDiagram
+- [x] Wire chat to backend `/api/chat`
+- [x] Parse streaming responses, update UI components progressively
+- [x] Pass Sei scores to Heatmap, cassette data to CassetteDiagram
 
 ---
 
