@@ -257,76 +257,14 @@ PROMPT
 )"
 
 ###############################################################################
-# PHASE 5: Pre-Compute Script (human-driven)
+# PHASE 5: Frontend — All Components
 ###############################################################################
-log 5 "Pre-Compute Script (code only — human runs it)"
-
-$CLAUDE "$(cat <<'PROMPT'
-You are building the precompute script and attempting Modal deployment for CassetteAI.
-Read SPEC.md Phase 5 for context.
-Read these existing files: backend/cache.py, backend/modal_generate.py, backend/modal_score.py, backend/interpret.py
-
-IMPORTANT: CLAUDE.md Rule 7 — NEVER fabricate biological data. All data must come from real models.
-
-## Task 1: Build backend/precompute.py
-
-Create a script that calls REAL Modal endpoints + Claude API to generate golden run data.
-DO NOT run this script during the build. The user runs it manually after deploying Modal functions.
-
-Use the lazy Anthropic client init pattern:
-```python
-_client = None
-def get_anthropic_client():
-    global _client
-    if _client is None:
-        import anthropic
-        _client = anthropic.Anthropic()
-    return _client
-```
-
-### What it does (when the user runs it):
-
-For each of these 3 prompts:
-1. "Design a liver-specific enhancer for AAV delivery" → cell_type=HepG2, target_tissue=liver
-2. "Design a cardiac-specific enhancer for AAV delivery" → cell_type=K562, target_tissue=cardiac
-3. "Design a neuron-specific enhancer for AAV delivery" → cell_type=GM12878, target_tissue=neural
-
-For each prompt, call real services and save:
-1. cache/{tissue}/generation.json — 200 sequences from Modal generate_elements(cell_type, 200)
-2. cache/{tissue}/scoring.json — scored sequences from Modal score_elements(sequences)
-3. cache/{tissue}/interpretation.json — Claude interpretation via interpret.py (real Claude API call)
-4. cache/{tissue}/cassette.json — cassette composition for the #1 candidate
-
-The script must:
-- Import and call the actual Modal functions (generate_elements, score_elements)
-- Import and call the actual interpret_scores() from backend/interpret.py (which calls Claude)
-- Handle errors clearly: if Modal isn't deployed or API key missing, print actionable error and exit
-- Be runnable with: .venv/bin/python -m backend.precompute
-
-## Task 2: Attempt modal deploy (image build only)
-
-Run these commands, but allow failure gracefully (CPU image build only, no GPU needed):
-  cd /Users/ethan/hackathon/CassetteAI && .venv/bin/modal deploy backend/modal_generate.py || echo "WARNING: modal deploy for generate failed (will need manual deploy)"
-  cd /Users/ethan/hackathon/CassetteAI && .venv/bin/modal deploy backend/modal_score.py || echo "WARNING: modal deploy for score failed (will need manual deploy)"
-
-## Task 3: Verify precompute.py imports work (but do NOT run it)
-
-Run: cd /Users/ethan/hackathon/CassetteAI && .venv/bin/python -c "from backend.precompute import main; print('precompute imports OK')"
-This must pass WITHOUT ANTHROPIC_API_KEY set (thanks to lazy init).
-
-Commit with message "feat: precompute script calling real Modal + Claude API"
-PROMPT
-)"
-
-###############################################################################
-# PHASE 6: Frontend — All Components
-###############################################################################
-log 6 "Frontend Components"
+log 5 "Frontend Components"
 
 $CLAUDE "$(cat <<'PROMPT'
 You are building the complete frontend for CassetteAI. Read SPEC.md Phase 4 for full specs.
 Read backend/server.py to understand the API contract (SSE events from POST /api/chat).
-Read backend/precompute.py to understand the data shapes that will be in cache files (the user hasn't run it yet, but the code shows the output structure).
+Read backend/orchestrator.py to understand the data shapes (generation, scoring, interpretation, cassette stages).
 Read backend/modal_score.py to see the score_elements() output structure.
 
 ## Tech Stack
@@ -412,9 +350,9 @@ PROMPT
 )"
 
 ###############################################################################
-# PHASE 7: Integration and Polish
+# PHASE 6: Integration and Polish
 ###############################################################################
-log 7 "Integration and Polish"
+log 6 "Integration and Polish"
 
 $CLAUDE "$(cat <<'PROMPT'
 You are doing final integration and polish for CassetteAI. Read SPEC.md Phase 6 for requirements.
@@ -424,7 +362,7 @@ You are doing final integration and polish for CassetteAI. Read SPEC.md Phase 6 
 1. READ all existing code first:
    - backend/server.py, backend/orchestrator.py, backend/interpret.py, backend/cache.py
    - frontend/src/App.jsx, frontend/src/Chat.jsx, frontend/src/Heatmap.jsx, frontend/src/CassetteDiagram.jsx, frontend/src/api.js
-   - NOTE: cache/ is empty — that's correct. Precompute hasn't been run yet.
+   - NOTE: cache/ is empty — that's correct. Cache is populated by running prompts through the app.
 
 2. FIX any import issues or wiring bugs:
    - Make sure backend modules can import each other (add __init__.py files if needed)
@@ -436,7 +374,7 @@ You are doing final integration and polish for CassetteAI. Read SPEC.md Phase 6 
    - Run: cd /Users/ethan/hackathon/CassetteAI && env -u ANTHROPIC_API_KEY .venv/bin/python -c "from backend.cache import get_cached, cache_key; from backend.orchestrator import run_pipeline; from backend.server import app; print('All imports OK')"
    - This MUST pass without any API keys — the lazy init pattern ensures no client is created at import time
    - Fix any issues found
-   - NOTE: cache/ is empty until user runs precompute manually — that's expected
+   - NOTE: cache/ is empty until user runs prompts through the app — that's expected
 
 4. TEST the frontend builds:
    - Run: cd /Users/ethan/hackathon/CassetteAI/frontend && npm run build
@@ -489,8 +427,8 @@ echo ""
 echo "  Type a prompt (e.g., 'Design a liver-specific enhancer') and the"
 echo "  live pipeline will run through real Modal + Claude endpoints."
 echo ""
-echo "  Optional — populate cache for demo reliability:"
+echo "  To populate cache for demo reliability:"
 echo "    modal deploy backend/modal_generate.py"
 echo "    modal deploy backend/modal_score.py"
-echo "    python -m backend.precompute"
+echo "    Then submit demo prompts through the app — results are cached automatically."
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"

@@ -77,8 +77,7 @@ CassetteAI/
 │   ├── orchestrator.py         # Claude orchestration + tool dispatch
 │   ├── cache.py                # Cache routing layer
 │   ├── interpret.py            # Claude interpretation prompt + parsing
-│   ├── server.py               # API server (FastAPI) to serve frontend
-│   └── precompute.py           # Script to generate golden runs
+│   └── server.py               # API server (FastAPI) to serve frontend
 ├── frontend/
 │   ├── src/
 │   │   ├── App.jsx             # Three-panel layout
@@ -91,9 +90,9 @@ CassetteAI/
 │   ├── system.md               # CassetteAI system prompt
 │   └── interpret.md            # Sei score interpretation prompt
 ├── cache/
-│   ├── liver/                  # Golden run: HepG2 (primary demo)
-│   ├── cardiac/                # Golden run: K562 proxy
-│   └── neural/                 # Golden run: GM12878 proxy
+│   ├── liver/                  # Cached run: HepG2 (primary demo)
+│   ├── cardiac/                # Cached run: K562 proxy
+│   └── neural/                 # Cached run: GM12878 proxy
 ├── SPEC.md                     # This file (single source of truth)
 └── CLAUDE.md                   # Pointers for agent context loading
 ```
@@ -471,35 +470,18 @@ SVG rendering of the final AAV cassette:
 
 ---
 
-## Phase 5: Pre-Computed Golden Runs (Manual Step)
+## Phase 5: Cache Population (Manual)
 
-The build script creates `backend/precompute.py` and attempts `modal deploy` (CPU image build only, no GPU). The precompute script is **NOT** run during build. The user runs it manually after deploy to populate the cache with real model outputs.
+No separate precompute script is needed. The orchestrator automatically caches results for every pipeline run. To populate the cache for demo prompts:
 
-### How to run:
-```bash
-source .venv/bin/activate
-# Deploy Modal functions first (requires modal setup)
-modal deploy backend/modal_generate.py
-modal deploy backend/modal_score.py
-# Then populate cache with real model outputs
-python -m backend.precompute
-```
-
-This calls the **real** Modal endpoints + Claude API to generate golden data for all 3 demo prompts:
-1. **Liver** (HepG2) — primary demo
-2. **Cardiac** (K562 proxy) — encore/Q&A
-3. **Neural** (GM12878 proxy) — backup
-
-Each writes: `cache/{tissue}/generation.json`, `scoring.json`, `interpretation.json`, `cassette.json`
-
-**Caveats:**
-- K562 is not cardiac; GM12878 is lymphoblastoid, not neural. DNA-Diffusion only covers 3 cell types.
-- Be transparent about this limitation if asked.
-- Requires Modal to be deployed and ANTHROPIC_API_KEY to be set.
+1. Deploy Modal functions: `modal deploy backend/modal_generate.py && modal deploy backend/modal_score.py`
+2. Run the app and submit your demo prompts (e.g. "Design a liver-targeted enhancer")
+3. Results are cached in `cache/{tissue}/` with 4 JSON files per tissue
+4. Re-running the same prompt serves cached results instantly
 
 **Build checklist:**
 - [ ] `modal deploy` both functions (manual — image build only, no GPU)
-- [ ] Run `python -m backend.precompute` (manual — calls real Modal + Claude)
+- [ ] Run demo prompts through the app to populate cache
 - [ ] Verify cache/liver/, cache/cardiac/, cache/neural/ each have 4 JSON files
 - [ ] Verify cached results render correctly through full frontend
 
@@ -559,10 +541,10 @@ Each writes: `cache/{tissue}/generation.json`, `scoring.json`, `interpretation.j
 
 | Risk | Likelihood | Impact | Mitigation |
 |------|-----------|--------|------------|
-| DNA-Diffusion weights not publicly available | MEDIUM | HIGH | Inspect repo for checkpoint availability; clear error message if unavailable; run precompute.py with real models when weights are accessible |
-| Sei model fails to load on Modal | LOW | HIGH | Inspect repo for model loading; clear error message; precompute.py populates cache with real Sei outputs |
-| Claude interprets biology incorrectly | LOW | MEDIUM | Review cached interpretation from real Claude output; precompute.py stores real Claude responses |
-| Modal cold start during demo | MEDIUM | HIGH | Cache layer eliminates this for prepared prompts (populated by precompute.py with real outputs) |
+| DNA-Diffusion weights not publicly available | MEDIUM | HIGH | Inspect repo for checkpoint availability; clear error message if unavailable; run prompts manually to cache results when weights are accessible |
+| Sei model fails to load on Modal | LOW | HIGH | Inspect repo for model loading; clear error message; run prompts to populate cache with real Sei outputs |
+| Claude interprets biology incorrectly | LOW | MEDIUM | Review cached interpretation from real Claude output; re-run prompts to refresh cache if needed |
+| Modal cold start during demo | MEDIUM | HIGH | Cache layer eliminates this for previously-run prompts |
 | WiFi fails at venue | MEDIUM | HIGH | Phone hotspot for Claude API; all other results cached |
 | Judge asks for unsupported tissue | MEDIUM | LOW | Claude explains limitation honestly; show Sei can score any tissue even if generation is proxied |
 | Demo runs over 3 min | MEDIUM | MEDIUM | Rehearse 5x; time each section; cut Q&A prompt if tight |
