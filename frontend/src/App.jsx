@@ -51,7 +51,7 @@ export default function App() {
         <div>
           <h1
             style={{
-              fontSize: '18px',
+              fontSize: '24px',
               fontWeight: 700,
               color: '#22d3ee',
               letterSpacing: '0.07em',
@@ -61,8 +61,8 @@ export default function App() {
           >
             CassetteAI
           </h1>
-          <p style={{ fontSize: '11px', color: '#475569', margin: 0 }}>
-            Gene therapy enhancer design
+          <p style={{ fontSize: '14px', color: '#64748b', margin: 0 }}>
+            AI-Powered Gene Therapy Cassette Design
           </p>
         </div>
 

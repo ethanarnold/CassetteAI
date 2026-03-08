@@ -22,8 +22,8 @@ const WELCOME =
 function PipelineStatus({ stages, done, error }) {
   return (
     <div
-      className="rounded-xl p-3 space-y-1.5 text-sm"
-      style={{ background: '#0d1929', border: '1px solid #1e2d40' }}
+      className="rounded-xl p-3 space-y-1.5"
+      style={{ background: '#0d1929', border: '1px solid #1e2d40', fontSize: '15px' }}
     >
       {stages.map((s, i) => (
         <div key={i} className="flex items-start gap-2">
@@ -34,11 +34,8 @@ function PipelineStatus({ stages, done, error }) {
 
       {!done && stages.length > 0 && (
         <div className="flex items-center gap-2 text-xs" style={{ color: '#475569' }}>
-          <span
-            className="inline-block"
-            style={{ animation: 'spin 1s linear infinite', display: 'inline-block' }}
-          >
-            ↻
+          <span className="loading-dots" aria-label="Processing">
+            <span /><span /><span />
           </span>
           <span>Processing…</span>
         </div>

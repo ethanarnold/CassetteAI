@@ -486,12 +486,12 @@ No separate precompute script is needed. The orchestrator automatically caches r
 
 ## Phase 6: Integration & Polish
 
-- [ ] End-to-end: liver prompt → full pipeline → all 3 panels render
-- [ ] End-to-end: cardiac prompt → cached results → all 3 panels render
-- [ ] End-to-end: novel prompt → live pipeline (clear error if Modal not deployed)
-- [ ] Font sizes readable on projector
+- [x] End-to-end: liver prompt → full pipeline → all 3 panels render
+- [x] End-to-end: cardiac prompt → cached results → all 3 panels render
+- [x] End-to-end: novel prompt → live pipeline (clear error if Modal not deployed)
+- [x] Font sizes readable on projector
 - [ ] Demo timing < 3 minutes
-- [ ] Error states: graceful messages if Modal/API fails
+- [x] Error states: graceful messages if Modal/API fails
 
 ---
 
