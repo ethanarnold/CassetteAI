@@ -2,74 +2,20 @@
   "ranking": [
     {
       "rank": 1,
-      "sequence": "GCTTATACATTCTGTCAGAACAGTAGATCAAGCCTTGTGAATTTAGACATGAGGACTTCCTCAAGAGATTCAAAGTGTCCAGCCCCCACCCTTATCTTCCTTCCATGCAGAATCCCCTCTCTCAAGGTCCTTGCCCATGGCCTTATCTCCATTCTCCAGATGCTCAAAATTTGAGTGCCTCATGAGCATCTTTCTCCTTC",
-      "sequence_display": "GCTTATACATTCTGTCAGAA...CATCTTTCTCCTTC",
-      "on_target_score_E11": 3.822,
-      "on_target_score_E5": 4.794,
-      "on_target_score_E12": 5.674,
-      "on_target_combined": 14.291,
-      "specificity_ratio": 2.85,
-      "top_class": "E12 Erythroblast-like",
+      "sequence": "ATCTTGTGTTAGCCCCTACCTTCTAACAGATGTATTTTCAAGTAAAAGCTGTAGAAAACTTTGGGAACTTCCTGCTTTCAGCTGCAGTAGTTTTCTTTATCTCTGCAGGTCACTGCCATTCTGCCTGGCAAAAAGCCTTTTTAAACAGGACCTTGTTTGGATTTCTCAGTGCCAGGGTCCAGTGATTGCTTTCCTGGCTT",
+      "sequence_display": "ATCTTGTGTTAGCCCCTACC...AGTGATTGCTTTCCTGGCTT",
+      "on_target_score": 7.9303,
+      "specificity_ratio": 0.9548,
+      "combined_score": 7.5722,
+      "top_class": "P Promoter",
       "flags": [
         "LOW_CPG"
       ]
-    },
-    {
-      "rank": 2,
-      "sequence": "CGGGGATACAGTCTGGAACAGAAAAAGGAAGTCTGGAAAAGAGGAAGCAGGATTTTCTGATTGGGGTTGGCCATGCCCTTGGCCTAGATCATAGCTAGGAAAATGGAGAAGGGGGAGAAGCCATGTCAGGGATGAAACATGTGAATATCTGATGCTGTTTTCTCATGGTGACCCTGGGGTTGCTGTTGGTTTGAGATTTA",
-      "sequence_display": "CGGGGATACAGTCTGGAACA...GGTTTGAGATTTA",
-      "on_target_score_E11": 3.107,
-      "on_target_score_E5": 5.698,
-      "on_target_score_E12": 2.186,
-      "on_target_combined": 10.992,
-      "specificity_ratio": 2.2,
-      "top_class": "E5 B-cell-like",
-      "flags": []
-    },
-    {
-      "rank": 3,
-      "sequence": "TCTTTGTTCTTCTAGTCCAGAAAGCCTCCCATTTGGAGCCATTCCATTAATTGACCTTCTTCATTCTTAAATGGGGTTGCTGCTAGTAAAACTCCTTTTTGCTTTCTATCTCTTTCCTTCCTGGATTCTTTCTATCTCTCCCCCTCTTTCCCTTTCTCCTTCCCTCTTCCCCTCCTTCTCTTCCCACCTCTCTCTTTTTC",
-      "sequence_display": "TCTTTGTTCTTCTAGTCCAG...CCTCTCTCTTTTTC",
-      "on_target_score_E11": 1.12,
-      "on_target_score_E5": 3.174,
-      "on_target_score_E12": 0.855,
-      "on_target_combined": 5.149,
-      "specificity_ratio": 2.19,
-      "top_class": "E5 B-cell-like",
-      "flags": [
-        "LOW_CPG"
-      ]
-    },
-    {
-      "rank": 4,
-      "sequence": "CAGTTGCTTTTATCTTCCTTGGTCAGATGAGTACTTGCTCCAGTAAGCAATTTGCTCTGGAAACTTGCTGTTTTGCAGAGCCAGTCTCCATGCTGTATCTTAAACCCTTGAACCTGTGGCGAACGTTTGCTTTCACAGATAATGCTGGTTAATGTTTCCATTTTCTGGCACTGTTGCATTTTGGTGTCCATTAAAAGATC",
-      "sequence_display": "CAGTTGCTTTTATCTTCCTT...CCATTAAAAGATC",
-      "on_target_score_E11": 3.597,
-      "on_target_score_E5": 4.438,
-      "on_target_score_E12": 3.149,
-      "on_target_combined": 11.184,
-      "specificity_ratio": 2.03,
-      "top_class": "P Promoter",
-      "flags": [
-        "CRYPTIC_POLYA"
-      ]
-    },
-    {
-      "rank": 5,
-      "sequence": "GAGGGGGTTTATGAAGGGGAGGTCTGGCCCTCTGCCCTCTACCCTCTCAAACTTCCTGCCTTTATCTCTGGCCACATAGCTGTCTCGGACCTGGTTTTCAGTCAGGGGGGAAGAATGGAAAGTGCTATTTGATCTAAGCTCAGGTTCCAGAACAGAGGCTGTAGTGCAGCCTGCCTCTTCAGGGTGCAGAGGGATGACAG",
-      "sequence_display": "GAGGGGGTTTATGAAGGGG...GAGGGATGACAG",
-      "on_target_score_E11": 4.396,
-      "on_target_score_E5": 5.887,
-      "on_target_score_E12": 3.435,
-      "on_target_combined": 13.719,
-      "specificity_ratio": 1.99,
-      "top_class": "P Promoter",
-      "flags": []
     }
   ],
   "recommendation": {
     "rank": 1,
-    "explanation": "Candidate #15 (GCTTATACATT...) achieves the highest blood/hematopoietic specificity ratio of 2.85\u00d7, driven by a dominant E12 Erythroblast-like score (5.674) alongside meaningful E5 B-cell-like (4.794) and E11 T-cell (3.822) activation\u2014a pan-hematopoietic regulatory signature suggesting engagement of erythroid and lymphoid transcription factor networks (e.g., GATA1/TAL1 for erythroblast, EBF1/PAX5 for B-cell). The element's top Sei class is E12 Erythroblast-like, and critically, the next-highest non-blood class (P Promoter at 5.020) is substantially lower than the combined hematopoietic signal, yielding the best specificity in this panel. The LOW_CPG flag indicates complete CpG depletion (observed/expected = 0.0), which is actually favorable for blood-targeted gene therapy: it reduces the risk of CpG-mediated innate immune activation (TLR9 sensing) in hematopoietic cells and avoids potential epigenetic silencing via DNMT-mediated methylation in vivo\u2014a known problem for CpG-rich regulatory cassettes in HSC-derived progeny. However, the absolute on-target scores are moderate (not in the highest tier of this panel), so this element may benefit from multimerization or pairing with a blood-specific minimal promoter to boost expression levels. The 2.85\u00d7 specificity ratio is the strongest in this candidate set and suggests this element is suitable for in vivo AAV delivery with reduced off-target expression in non-hematopoietic tissues, though in vivo validation in a reporter assay across multiple tissues is recommended before clinical advancement.",
+    "explanation": "This candidate achieves strong blood-tissue relevance through high activation of the E5 B-cell-like class (7.93) alongside meaningful E7 Monocyte/Macrophage (4.95) and E11 T-cell (4.89) scores, indicating a regulatory logic that engages multiple hematopoietic lineage programs. The dominant P Promoter signal (8.31) suggests this element functions as a broad promoter with hematopoietic enhancer specificity layered on top, which is consistent with blood-lineage regulatory elements that often combine promoter-proximal architecture with lineage-specific transcription factor binding sites. The specificity ratio of 0.95 is moderate\u2014note the substantial E4 Multi-tissue (5.95) and E6 Weak epithelial (4.45) scores, which indicate some off-target expression potential in non-hematopoietic tissues that should be evaluated in vivo; the LOW_CPG flag is unlikely to be problematic and may actually reduce methylation-mediated silencing in an AAV context, though the strong promoter signature warrants careful assessment of transgene dosage.",
     "cassette": {
       "elements": [
         "5'ITR",
@@ -91,10 +37,10 @@
       "aav_limit_bp": 4700,
       "headroom_bp": 2180,
       "promoter": "minTBG",
-      "enhancer_sequence": "GCTTATACATTCTGTCAGAACAGTAGATCAAGCCTTGTGAATTTAGACATGAGGACTTCCTCAAGAGATTCAAAGTGTCCAGCCCCCACCCTTATCTTCCTTCCATGCAGAATCCCCTCTCTCAAGGTCCTTGCCCATGGCCTTATCTCCATTCTCCAGATGCTCAAAATTTGAGTGCCTCATGAGCATCTTTCTCCTTC"
+      "enhancer_sequence": "ATCTTGTGTTAGCCCCTACCTTCTAACAGATGTATTTTCAAGTAAAAGCTGTAGAAAACTTTGGGAACTTCCTGCTTTCAGCTGCAGTAGTTTTCTTTATCTCTGCAGGTCACTGCCATTCTGCCTGGCAAAAAGCCTTTTTAAACAGGACCTTGTTTGGATTTCTCAGTGCCAGGGTCCAGTGATTGCTTTCCTGGCTT"
     }
   },
-  "summary": "From 20 synthetic regulatory elements screened for blood/hematopoietic specificity using the Sei deep learning framework, candidate GCTTATACATT... emerged as the top-ranked element with a 2.85\u00d7 specificity ratio over non-blood classes, driven by strong E12 Erythroblast-like (5.674) and E5 B-cell-like (4.794) Sei scores indicating pan-hematopoietic regulatory activity. This element uniquely achieves its highest absolute score in a blood lineage class (E12) rather than the generic Promoter class that dominates most other candidates, suggesting genuine hematopoietic enhancer logic rather than ubiquitous promoter-proximal activity. Its complete CpG depletion is advantageous for avoiding innate immune stimulation and epigenetic silencing in blood cells. When assembled into a minimal AAV cassette (~2,470 bp), over 2,200 bp of headroom remains for therapeutic transgene payload, making this a practical candidate for further in vivo validation in hematopoietic-targeted gene therapy applications.",
+  "summary": "This synthetic element drives strong blood-cell-specific regulatory activity across B-cell, monocyte, and T-cell programs, but its broad promoter character and moderate specificity ratio suggest some off-target expression in other tissues that should be confirmed experimentally before clinical AAV use.",
   "cassette": {
     "elements": [
       "5'ITR",
@@ -116,6 +62,6 @@
     "aav_limit_bp": 4700,
     "headroom_bp": 2180,
     "promoter": "minTBG",
-    "enhancer_sequence": "GCTTATACATTCTGTCAGAACAGTAGATCAAGCCTTGTGAATTTAGACATGAGGACTTCCTCAAGAGATTCAAAGTGTCCAGCCCCCACCCTTATCTTCCTTCCATGCAGAATCCCCTCTCTCAAGGTCCTTGCCCATGGCCTTATCTCCATTCTCCAGATGCTCAAAATTTGAGTGCCTCATGAGCATCTTTCTCCTTC"
+    "enhancer_sequence": "ATCTTGTGTTAGCCCCTACCTTCTAACAGATGTATTTTCAAGTAAAAGCTGTAGAAAACTTTGGGAACTTCCTGCTTTCAGCTGCAGTAGTTTTCTTTATCTCTGCAGGTCACTGCCATTCTGCCTGGCAAAAAGCCTTTTTAAACAGGACCTTGTTTGGATTTCTCAGTGCCAGGGTCCAGTGATTGCTTTCCTGGCTT"
   }
 }

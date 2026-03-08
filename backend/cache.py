@@ -18,13 +18,19 @@ _TISSUE_MAP: dict[str, str] = {
     "neuron": "neural",
     "neural": "neural",
     "cns": "neural",
+    "blood": "blood",
+    "hematopoietic": "blood",
+    "b-cell": "blood",
+    "t-cell": "blood",
+    "erythrocyte": "blood",
+    "monocyte": "blood",
 }
 
 
 def cache_key(prompt: str) -> str:
     """Return canonical cache key for a prompt.
 
-    Known tissues → 'liver' | 'cardiac' | 'neural'.
+    Known tissues → 'liver' | 'cardiac' | 'neural' | 'blood'.
     Unknown prompts → first 16 hex chars of SHA-256.
     """
     normalized = prompt.lower().strip()

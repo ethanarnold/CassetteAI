@@ -64,6 +64,10 @@ _TISSUE_SYNONYMS: dict[str, str] = {
     "cns": "neural",
     "blood": "blood",
     "hematopoietic": "blood",
+    "b-cell": "blood",
+    "t-cell": "blood",
+    "erythrocyte": "blood",
+    "monocyte": "blood",
 }
 
 
@@ -187,6 +191,7 @@ async def run_pipeline(
         yield {
             "type": "results",
             "data": {
+                "tissue": tissue,
                 "generation": cached_gen,
                 "scoring": cached_score,
                 "interpretation": cached_interp,

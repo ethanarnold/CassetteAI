@@ -2,55 +2,18 @@
   "ranking": [
     {
       "rank": 1,
-      "sequence": "ATAAAGCAAGGCCATCTAGAGATTTCCTGGTGCAGATCTGAGCTCTTGCACCACAGTTGGACTTTGAAACTGGTTTCCCTCTTCTCTGAATATTGCACAACTCATATTTTATGAAGCTCCCAGGCCATGGACTTTGGACCAACACTGTGTGTCCATAATGCTCTCTTTATTGAAGGGTTGCATGTCAGTGAGCTCCCAGT",
-      "sequence_display": "ATAAAGCAAGGCCATCTAGA...GCATGTCAGTGAGCTCCCAGT",
-      "on_target_score": 5.141,
-      "specificity_ratio": 1.27,
-      "top_class": "E9 Liver / Intestine",
-      "flags": [
-        "LOW_CPG"
-      ]
-    },
-    {
-      "rank": 2,
-      "sequence": "TCAGCTTTTGAATATGAGTCTCAAAATCATGTGGTACAAAGGTCGCATTCCAGTGGAGAGGACTCTGGAACTGCCAAGCGTGCTCTACAGCAAACAGCTGGGTAAACTATTGACAATGTTTACCAGGCATTGTCCATACCTCTGTCAACACTACCTGACCGGGGAGCAGGAGGGCAGTGGAGAGTTTTTTAGTTTGTTTT",
-      "sequence_display": "TCAGCTTTTGAATATGAGTC...AGTGGAGAGTTTTTTAGTTTGTTTT",
-      "on_target_score": 2.976,
-      "specificity_ratio": 0.62,
-      "top_class": "TF3 FOXA1 / AR / ESR1",
-      "flags": []
-    },
-    {
-      "rank": 3,
-      "sequence": "CTGGCTTTTCGTGTCTCTGGACTTTGGACTTTAGCTCCCAGGCTATACAAAAGCAGGGTCAGTAGTTAACTTGCTGAACGCATCGGGACAGCTGAGCCCAGGCTTGTGCCCGGCTCCCCTCTCCTGTCCTCACGGAACCGCAGAGGGGCTCCGGGGCCAGGGAAAGTCAACGTCAAACTGCGGAGGACAGGTGTCCTGCC",
-      "sequence_display": "CTGGCTTTTCGTGTCTCTGG...GCGGAGGACAGGTGTCCTGCC",
-      "on_target_score": 5.472,
-      "specificity_ratio": 0.57,
-      "top_class": "P Promoter",
-      "flags": []
-    },
-    {
-      "rank": 4,
-      "sequence": "ACTGTGTCCCGAGAACTTATGCCCAGCCTGGCCCAGGCTCAGGCTCTTGAACAAATATTTACTTAGATCAGTAAACAAAAGCTATTGGATGACAGATCTGGGAATGTGACCCCGAGCCCAGGTTATGGCAATTGGGCCAGGCCCAAATGAGTGGATGAGCTGGTCTGTACAAAGGTCCCCTGGGTAGGGGGTGGGGGAGG",
-      "sequence_display": "ACTGTGTCCCGAGAACTTAT...GTCCCCTGGGTAGGGGGTGGGGGAGG",
-      "on_target_score": 1.674,
-      "specificity_ratio": 0.49,
-      "top_class": "TF3 FOXA1 / AR / ESR1",
-      "flags": []
-    },
-    {
-      "rank": 5,
-      "sequence": "CACAGAGCAGGACGTACAGAAGGGGTCAGGGATGCACTGGACCTGTGGGAACACCGTGCAAAGCTCTGTTGACATAGGGCATGACCTATATCGAGATCCACTTAGAAAACACTGCCTATCCAAAGTCCAAACCAGGTCAAAGGCAAATATTGACTTTGTGCGCTCACTGAACACGTCATCACAGGCAGAGTTACCAAGTG",
-      "sequence_display": "CACAGAGCAGGACGTACAGA...CACAGGCAGAGTTACCAAGTG",
-      "on_target_score": 4.406,
-      "specificity_ratio": 0.48,
+      "sequence": "TTATATGCTTGCAATGATTGGCAGGGAACAGAGTAGACTCTGAGTAAACATTCCATTATGTCAATAGTTAAACAGTGACTGACGTGGGACGCCAGTACTGTGCTTTTGCTTCCTCCTGACATTCCAGGTACACTCTGTGTGTTTCATAACCAACCAGAGGCAGAGAAGGTCACTGACCTTGCACAAACACATGGCAGTGC",
+      "sequence_display": "TTATATGCTTGCAATGATTG...GCACAAACACATGGCAGTGC",
+      "on_target_score": 11.0693,
+      "specificity_ratio": 1.0745,
+      "combined_score": 11.8945,
       "top_class": "TF3 FOXA1 / AR / ESR1",
       "flags": []
     }
   ],
   "recommendation": {
     "rank": 1,
-    "explanation": "Candidate #15 is the only element in this panel where the E9 Liver / Intestine class is the dominant Sei prediction (score 5.141), achieving a specificity ratio of 1.27x over the next-highest class (E4 Multi-tissue at 4.059). This dominance of the liver/intestine enhancer signature\u2014combined with a moderate CEBPB signal (2.534), which reflects hepatocyte-enriched C/EBP\u03b2 binding\u2014suggests the sequence encodes a bona fide hepatocyte-active cis-regulatory element rather than a generic promoter or multi-tissue enhancer. Notably, TF3 FOXA1/AR/ESR1 (1.993) and TF1 NANOG/FOXA1 (0.836) are both relatively suppressed compared to the liver enhancer class, indicating the element's regulatory logic is more aligned with mature hepatocyte chromatin states (HNF4\u03b1/C/EBP-driven) than with pioneer-factor-dominated early endoderm. The LOW_CPG flag (CpG density = 0.0) is consistent with a distal enhancer located in a CpG-depleted intergenic or intronic region, which is typical of tissue-specific mammalian enhancers and is not a functional concern; however, the absence of CpGs means this element is unlikely to be silenced by DNA methylation, which is favorable for sustained AAV-mediated expression. The GC content of 45.0% is within the normal range and should not pose synthesis or packaging difficulties. With a specificity ratio of 1.27x, this element shows modest but real liver dominance; while higher ratios (>2x) would provide stronger confidence in tissue restriction, the absolute E9 score of 5.141 is among the highest in the panel. For AAV-mediated liver-directed gene therapy, this element is a reasonable candidate for in vivo testing, though the scientist should validate by luciferase reporter assay in hepatocyte (e.g., HepG2) versus non-hepatocyte lines to confirm the predicted specificity, given that the ratio is not dramatically above 1.0 and some E4 Multi-tissue activity may produce low-level off-target expression.",
+    "explanation": "This candidate achieves strong liver relevance through high activation of the FOXA1/AR/ESR1 transcription factor class (11.07), consistent with FOXA1's well-established role as a pioneer factor in hepatocyte gene regulation, and is further supported by meaningful E9 Liver/Intestine enhancer activity (6.74). However, the specificity ratio of 1.07 is modest, driven by substantial multi-tissue (E4, 10.30), weak epithelial (E6, 9.12), and promoter (P, 8.63) class co-activation, indicating that this element engages broad regulatory logic rather than a tightly liver-restricted program\u2014this raises concern for off-target expression in epithelial and other FOXA1-expressing tissues (e.g., prostate, breast) in an AAV context. No synthesis or pathology flags are present (GC 45.5%, no homopolymers or cryptic polyA signals), so manufacturability is favorable, but the scientist should consider pairing this element with a liver-specific minimal promoter or miRNA-based detargeting strategy to sharpen tissue selectivity before advancing to in vivo studies.",
     "cassette": {
       "elements": [
         "5'ITR",
@@ -72,10 +35,10 @@
       "aav_limit_bp": 4700,
       "headroom_bp": 2180,
       "promoter": "minTBG",
-      "enhancer_sequence": "ATAAAGCAAGGCCATCTAGAGATTTCCTGGTGCAGATCTGAGCTCTTGCACCACAGTTGGACTTTGAAACTGGTTTCCCTCTTCTCTGAATATTGCACAACTCATATTTTATGAAGCTCCCAGGCCATGGACTTTGGACCAACACTGTGTGTCCATAATGCTCTCTTTATTGAAGGGTTGCATGTCAGTGAGCTCCCAGT"
+      "enhancer_sequence": "TTATATGCTTGCAATGATTGGCAGGGAACAGAGTAGACTCTGAGTAAACATTCCATTATGTCAATAGTTAAACAGTGACTGACGTGGGACGCCAGTACTGTGCTTTTGCTTCCTCCTGACATTCCAGGTACACTCTGTGTGTTTCATAACCAACCAGAGGCAGAGAAGGTCACTGACCTTGCACAAACACATGGCAGTGC"
     }
   },
-  "summary": "Among 20 synthetic regulatory elements screened by the Sei deep learning model for liver-specific enhancer activity, one candidate (Rank 1) stood out as the only element where the E9 Liver / Intestine chromatin class was the top-scoring prediction (5.141), with a 1.27-fold specificity ratio over the next-highest class (E4 Multi-tissue). This element has balanced GC content (45%), no synthesis-problematic flags beyond expected CpG depletion typical of distal enhancers, and a regulatory signature consistent with hepatocyte-active chromatin. When paired with a minimal TBG promoter in an AAV cassette (total ~2,520 bp, well within the 4,700 bp packaging limit with 2,180 bp headroom for transgene flexibility), this element is the most promising candidate for liver-directed gene therapy, though in vitro reporter validation is recommended given the moderate specificity ratio.",
+  "summary": "This element strongly engages liver-relevant transcription factor programs (especially FOXA1) and has no manufacturing concerns, but its low specificity ratio indicates likely expression in non-liver tissues, so additional design strategies to restrict off-target activity are recommended.",
   "cassette": {
     "elements": [
       "5'ITR",
@@ -97,6 +60,6 @@
     "aav_limit_bp": 4700,
     "headroom_bp": 2180,
     "promoter": "minTBG",
-    "enhancer_sequence": "ATAAAGCAAGGCCATCTAGAGATTTCCTGGTGCAGATCTGAGCTCTTGCACCACAGTTGGACTTTGAAACTGGTTTCCCTCTTCTCTGAATATTGCACAACTCATATTTTATGAAGCTCCCAGGCCATGGACTTTGGACCAACACTGTGTGTCCATAATGCTCTCTTTATTGAAGGGTTGCATGTCAGTGAGCTCCCAGT"
+    "enhancer_sequence": "TTATATGCTTGCAATGATTGGCAGGGAACAGAGTAGACTCTGAGTAAACATTCCATTATGTCAATAGTTAAACAGTGACTGACGTGGGACGCCAGTACTGTGCTTTTGCTTCCTCCTGACATTCCAGGTACACTCTGTGTGTTTCATAACCAACCAGAGGCAGAGAAGGTCACTGACCTTGCACAAACACATGGCAGTGC"
   }
 }

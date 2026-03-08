@@ -168,23 +168,24 @@ def rerank_candidates(
         specificity = on_target / max(other_max, 1e-9)
 
         has_critical = bool(set(flags) & _CRITICAL_FLAGS)
+        combined = on_target * specificity
 
         ranked.append({
             **item,
             "on_target_score": round(on_target, 4),
             "specificity_ratio": round(specificity, 4),
+            "combined_score": round(combined, 4),
             "gc_pct": round(gc_pct, 2),
             "cpg_density": round(cpg_dens, 4),
             "flags": flags,
             "has_critical_flag": has_critical,
         })
 
-    # Sort: non-critical first, then by specificity DESC, on_target DESC
+    # Sort: non-critical first, then by combined score (on_target * specificity) DESC
     ranked.sort(
         key=lambda x: (
             not x["has_critical_flag"],  # True (no critical) sorts first
-            x["specificity_ratio"],
-            x["on_target_score"],
+            x["combined_score"],
         ),
         reverse=True,
     )
@@ -294,6 +295,7 @@ async def interpret_scores(
         "sequence_display": seq_display,
         "on_target_score": top["on_target_score"],
         "specificity_ratio": top["specificity_ratio"],
+        "combined_score": top["combined_score"],
         "top_class": top.get("top_class", ""),
         "flags": top["flags"],
     }
@@ -309,6 +311,7 @@ async def interpret_scores(
         f"Top candidate (rank 1 of {len(ranked)}):\n"
         f"- On-target score: {top['on_target_score']}\n"
         f"- Specificity ratio: {top['specificity_ratio']}\n"
+        f"- Combined score (on-target × specificity): {top['combined_score']}\n"
         f"- Top Sei class: {top.get('top_class', 'N/A')}\n"
         f"- GC%: {top['gc_pct']}\n"
         f"- Flags: {', '.join(top['flags']) or 'none'}\n"

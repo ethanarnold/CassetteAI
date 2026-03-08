@@ -1,4 +1,65 @@
 {
-  "raw_response": "\n\nI'll work through this systematically for cardiac tissue targeting.\n\n## Step 1: Identify On-Target Classes for Cardiac\n\nPer the instructions, cardiac/heart relevant classes are:\n- **\"E12 Erythroblast-like\"** (primary cardiac-relevant)\n- **\"P Promoter\"** (secondary cardiac-relevant)\n\nI'll compute a combined on-target score as the sum of these two, and the specificity ratio as: max(E12, P Promoter) / max(all other class scores).\n\n## Step 2: Compute Cardiac Specificity Ratios\n\nLet me calculate for each candidate:\n\n| # | Seq (start) | E12 | P Promoter | max(E12,P) | max(others) | Ratio |\n|---|------------|-----|------------|------------|-------------|-------|\n| 1 | TCCCAATAGG | 2.604 | 6.383 | 6.383 | 5.027 (E4) | 1.27 |\n| 2 | AAGAGTCTAC | 3.016 | 6.936 | 6.936 | 5.466 (E4) | 1.27 |\n| 3 | CTTTTTGCTT | 3.136 | 5.672 | 5.672 | 4.475 (E4) | 1.27 |\n| 4 | AGCAGGCTCC | 2.958 | 6.805 | 6.805 | 5.569 (E4) | 1.22 |\n| 5 | CTCAAGCCTT | 3.080 | 6.828 | 6.828 | 5.642 (E4) | 1.21 |\n| 6 | AATGCTCACA | 5.087 | 10.700 | 10.700 | 8.852 (E4) | 1.21 |\n| 7 | CCAACGAAGC | 3.766 | 7.871 | 7.871 | 6.628 (E4) | 1.19 |\n| 8 | GAGCACAGAA | 5.856 | 8.571 | 8.571 | 10.979 (CTCF) | **0.78** |\n| 9 | GTTCTCAGGG | 3.402 | 8.701 | 8.701 | 7.481 (E5) | 1.16 |\n| 10 | GAGATAGAAG | 2.167 | 3.804 | 3.804 | 3.277 (E4) | 1.16 |\n| 11 | CCTGTACCAA | 8.596 | 13.113 | 13.113 | 16.451 (E4) | **0.80** |\n| 12 | CGCTCCAGGG | 1.679 | 2.890 | 2.890 | 2.541 (E4) | 1.14 |\n| 13 | TACTGCTAAC | 3.407 | 5.484 | 5.484 | 4.826 (E4) | 1.14 |\n| 14 | AAATGCTTTC | 7.125 | 12.758 | 12.758 | 14.464 (E4) | **0.88** |\n| 15 | AAGCTTCAGT | 7.261 | 10.305 | 10.305 | 11.633 (E4) | **0.89** |\n| 16 | GAAGTTCTGA | 3.883 | 8.006 | 8.006 | 7.176 (E4) | 1.12 |\n| 17 | TCATATTTGA | 2.960 | 6.313 | 6.313 | 5.662 (E4) | 1.11 |\n| 18 | GGTCTAGTGC | 5.900 | 9.222 | 9.222 | 10.506 (E4) | **0.88** |\n| 19 | TTGGACTTGG | 2.438 | 5.124 | 5.124 | 4.612 (E4) | 1.11 |\n| 20 | GGCAACTGTC | 6.975 | 10.491 | 10.491 | 13.123 (E4) | **0.80** |\n\nNow, for candidates where E4 Multi-tissue is the highest overall score (candidates 11, 14, 15, 18, 20), the cardiac on-target classes (E12, P Promoter) are not dominant \u2014 the element is driven by a broad multi-tissue enhancer signature rather than cardiac-specific activity. For candidate 8, CTCF dominates. These get ratios < 1.0, meaning off-target classes exceed the cardiac classes.\n\n**Ranking by cardiac specificity ratio (descending), breaking ties by absolute max(E12, P Promoter):**\n\n| Rank | Candidate | Ratio | max(E12,P) | Flags |\n|------|-----------|-------|------------|-------|\n| 1 | #2 (AAGAGTCTAC) | 1.269 | 6.936 | none |\n| 2 | #1 (TCCCAATAGG) | 1.270 | 6.383 | none |\n| 3 | #3 (CTTTTTGCTT) | 1.268 | 5.672 | none |\n| 4 | #4 (AGCAGGCTCC) | 1.222 | 6.805 | none |\n| 5 | #5 (CTCAAGCCTT) | 1.210 | 6.828 | HIGH_GC |\n\nWait \u2014 let me re-examine. Ratios are very close for #1, #2, #3. Let me be more precise:\n\n**Candidate 1 (TCCCAATAGG):**\n- max on-target = P Promoter = 6.3825\n- Others: E4=5.0273, E5=4.4432, E6=4.1608, E2=2.6425, Group-47=3.9928\n- max(others) = 5.0273\n- Ratio = 6.3825 / 5.0273 = **1.2696**\n\n**Candidate 2 (AAGAGTCTAC):**\n- max on-target = P Promoter = 6.9356\n- Others: E4=5.4655, E5=4.8137, E6=4.8036, CTCF=4.1454, E2=2.9978\n- max(others) = 5.4655\n- Ratio = 6.9356 / 5.4655 = **1.2690**\n\n**Candidate 3 (CTTTTTGCTT):**\n- max on-target = P Promoter = 5.6718\n- Others: E4=4.4753, E5=4.401, E6=3.8695, CTCF=3.5925, E2=2.5024\n- max(others) = 4.4753\n- Ratio = 5.6718 / 4.4753 = **1.2673**\n\n**Candidate 6 (AATGCTCACA):**\n- max on-target = P Promoter = 10.6999\n- Others: E4=8.8519, E6=7.6914, CTCF=7.2949, Group-51=6.5931, E2=4.3628\n- max(others) = 8.8519\n- Ratio = 10.6999 / 8.8519 = **1.2088**\n- Absolute on-target score is highest among all candidates with ratio > 1.0!\n\n**Candidate 5 (CTCAAGCCTT):**\n- max on-target = P Promoter = 6.8275\n- Others: E4=5.6415, E5=5.3032, E6=4.76, E7=4.2206, E2=3.3126\n- max(others) = 5.6415\n- Ratio = 6.8275 / 5.6415 = **1.2102**\n\n**Final ranking (sorted by ratio, ties broken by absolute on-target):**\n\n| Rank | ID | Ratio | On-target (max E12/P) | Flags |\n|------|-----|-------|----------------------|-------|\n| 1 | #1 | 1.2696 | 6.383 | none |\n| 2 | #2 | 1.2690 | 6.936 | none |\n| 3 | #3 | 1.2673 | 5.672 | none |\n| 4 | #4 | 1.2221 | 6.805 | none |\n| 5 | #5 | 1.2102 | 6.828 | HIGH_GC |\n\nHmm \u2014 but the instructions say to rank by specificity ratio first, then break ties by absolute on-target score. #1 has the highest ratio (1.2696) so it ranks first, even though #2 has a higher absolute P Promoter score. Let me also consider #6 which has ratio 1.2088 but by far the highest absolute score (10.700). It falls to rank 6.\n\nActually, re-reading: I should use both E12 and P Promoter as on-target. Let me compute a combined metric. The instruction says \"on-target score\" \u2014 for cardiac, both E12 and P Promoter are relevant. I'll use the maximum of the two relevant classes as the on-target score, since that's what drives the specificity calculation.\n\nFinal Top 5:\n\n```json\n{\n  \"ranking\": [\n    {\n      \"rank\": 1,\n      \"sequence\": \"TCCCAATAGGGGGGCAGCCAGGTGCAGAACCTGCAAGGCCCCCCAGGGCATTGGCTCACTGTCCCCTGCCGCGGTGCTTGCCAATCCAGATTCTCTGTTTCGTTTTGGTTTCAGATGGCTGTGAGACATTGATTCTTTATACTAAGGATCAGTGGGCAGCTGGTCAATAGAGGCGTTTTGCCATGTGAAACCCTTTTACA\",\n      \"sequence_display\": \"TCCCAATAGGGGGGCAGCCA...TGAAACCCTTTTACA\",\n      \"on_target_score_P\": 6.383,\n      \"on_target_score_E12\": 2.604,\n      \"on_target_score\": 6.383,\n      \"specificity_ratio\": 1.27,\n      \"top_class\": \"P Promoter\",\n      \"flags\": []\n    },\n    {\n      \"rank\": 2,\n      \"sequence\": \"AAGAGTCTACAGGACTTAGGTAAGGAAGGGCTTAGGAATGCATCTGACACGGTGCAGAGTAGGAGGAGGGGAAGAACATGAGAGCTTGTGTGTGGCTCAAACCCTGGACAAGGAAGGCTGCCTTGCAGAGCATGCTTACCTTCAAGGTTTGTTCAGGTCACCTTCTCCTCCACTCTTCTTCTTCCTGTTATCTCTTGTTT\",\n      \"sequence_display\": \"AAGAGTCTACAGGACTTAGG...TTATCTCTTGTTT\",\n      \"on_target_score_P\": 6.936,\n      \"on_target_score_E12\": 3.016,\n      \"on_target_score\": 6.936,\n      \"specificity_ratio\": 1.27,\n      \"top_class\": \"P Promoter\",\n      \"flags\": []\n    },\n    {\n      \"rank\": 3,\n      \"sequence\": \"CTTTTTGCTTTTCTAACTGGGCAGTGATTTCTAATTATATGCCTTTGGGACATGAGCTGGACAGTGGGGCGAATACTTGAGGGAACAGGATTGGGAGAGACAGATGGATGTTGGCAGAGTTTGCCTCCCTCCCCCACTTCTCGCCAGGGCTGTCACCCCTCACTTCCTTATCTGAAGCCACCAGGTAAATGTTGTGTGTA\",\n      \"sequence_display\": \"CTTTTTGCTTTTCTAACTGG...AAATGTTGTGTGTA\",\n      \"on_target_score_P\": 5.672,\n      \"on_target_score_E12\": 3.136,\n      \"on_target_score\": 5.672,\n      \"specificity_ratio\": 1.27,\n      \"top_class\": \"P Promoter\",\n      \"flags\": []\n    },\n    {\n      \"rank\": 4,\n      \"sequence\": \"AGCAGGCTCCAGGTGCCAGACAGGGGTCAGCAGCGCTCAGCAAATCCCAGATACTCGGAGCCCCAAGAGGTGGCAGAGTTTAGGGAGGGGCAGCTGCTGTGGGACCTGGAGGAAGCTCACACAGCCTTCCCTGCTCCCTTTCACTTCCTCCCAGAAGTCTGGAAGTCTCTCTGGAGGTGCCTGACGCTCTCTTCATGAAA\",\n      \"sequence_display\": \"AGCAGGCTCCAGGTGCCAGA...GCTCTCTTCATGAAA\",\n      \"on_target_score_P\": 6.805,\n      \"on_target_score_E12\": 2.958,\n      \"on_target_score\": 6.805,\n      \"specificity_ratio\": 1.22,\n      \"top_class\": \"P Promoter\",\n      \"flags\": []\n    },\n    {\n      \"rank\": 5,\n      \"sequence\": \"CTCAAGCCTTGAACAGAGGAGAACGCCTAAATTGGTATATCTCCGCCTAGGTTCCTCTGTCCTTCCACAGCGTCCCAGGCCAGTGGCCCTGGGACGTCCCCAGCACCCAGGGGCTGCTCGACCGGCACTCGGCTCCTGAGTTCAGGGTGCTGCTTCCCCAGGGGGAACTGTGGAGAGCAGGACCAGATCTGGTCACCGGA\",\n      \"sequence_display\": \"CTCAAGCCTTGAACAGAGGA...AGATCTGGTCACCGGA\",\n      \"on_target_score_P\": 6.828,\n      \"on_target_score_E12\": 3.080,\n      \"on_target_score\": 6.828,\n      \"specificity_ratio\": 1.21,\n      \"top_class\": \"P Promoter\",\n      \"flags\": [\"HIGH_GC\"]\n    }\n  ],\n  \"recommendation\": {\n    \"rank\": 1,\n    \"explanation\": \"Candidate #1 (TCCCAATAGG...) achieves the highest cardiac specificity ratio (1.27x) among all 20 elements, with its dominant Sei class being 'P Promoter' (score 6.383), which is one of the two cardiac-relevant regulatory classes. The element shows strong Promoter-class activation relative to the next-highest off-target class (E4 Multi-tissue at 5.027), and its E12 Erythroblast-like score (2.604) provides a secondary cardiac-lineage signal. The GC content (52.5%) falls within the optimal 40\u201360% range, CpG density is moderate (0.29), and no pathology flags were raised\u2014no homopolymers, cryptic polyA signals, or extreme compositional bias\u2014making it favorable for robust synthesis and stable expression in vivo. However, the specificity ratio of 1.27x is modest; the E4 Multi-tissue and E5 B-cell-like classes carry non-trivial scores, suggesting some residual off-target regulatory potential in non-cardiac tissues. For AAV-mediated cardiac gene therapy, this element should be paired with a cardiac-specific minimal promoter (e.g., minCMV or a cardiac troponin T minimal promoter) to reinforce tissue restriction, and in vivo biodistribution studies are recommended to confirm that the modest specificity ratio translates to acceptable cardiac selectivity with limited hepatic or hematopoietic leakage.\",\n    \"cassette\":",
-  "parse_error": "Could not extract JSON from Claude Opus response"
+  "ranking": [
+    {
+      "rank": 1,
+      "sequence": "ATGTCTAGCTTCCTCCTTTCAATTCCCCTTTGAGTTTGACAACTAGTCTATGTCGTTTGTTCTTTGCAAATGCTCACATGGATGAGAACCTTATCAGGAACTGGAAAACCTCTCCTTTGGCAGTTGAAAAGGGTTTGGCTAGAAGCAAACATCAGCCAGGATTGGGGACCAAACTATCTGAGATGCACTTCTTCTAACTT",
+      "sequence_display": "ATGTCTAGCTTCCTCCTTTC...AGATGCACTTCTTCTAACTT",
+      "on_target_score": 6.4809,
+      "specificity_ratio": 0.9721,
+      "combined_score": 6.3001,
+      "top_class": "P Promoter",
+      "flags": []
+    }
+  ],
+  "recommendation": {
+    "rank": 1,
+    "explanation": "This candidate achieves strong blood-tissue relevance by simultaneously activating B-cell-like (E5, 6.48) and Monocyte/Macrophage (E7, 5.48) enhancer classes alongside a robust Promoter signature (6.67), suggesting it encodes a broad hematopoietic regulatory element with promoter-proximal logic rather than a pure distal enhancer. The specificity ratio of 0.97 is modest because the element also activates Multi-tissue (E4, 6.41) and Weak epithelial (E6, 5.69) classes at appreciable levels, indicating some off-target regulatory potential in non-blood lineages that should be evaluated in vivo, particularly in liver and epithelial tissues commonly transduced by AAV serotypes. No synthesis or epigenetic flags were raised (GC 42.5%, no homopolymers, CpG, or cryptic polyA issues), making this element manufacturing-friendly, though the sub-1.0 specificity ratio warrants pairing with a blood-tropic AAV capsid to mitigate the multi-tissue activity and achieve acceptable therapeutic specificity.",
+    "cassette": {
+      "elements": [
+        "5'ITR",
+        "enhancer",
+        "minTBG",
+        "transgene",
+        "bGH_polyA",
+        "3'ITR"
+      ],
+      "lengths_bp": [
+        145,
+        200,
+        300,
+        1500,
+        230,
+        145
+      ],
+      "total_bp": 2520,
+      "aav_limit_bp": 4700,
+      "headroom_bp": 2180,
+      "promoter": "minTBG",
+      "enhancer_sequence": "ATGTCTAGCTTCCTCCTTTCAATTCCCCTTTGAGTTTGACAACTAGTCTATGTCGTTTGTTCTTTGCAAATGCTCACATGGATGAGAACCTTATCAGGAACTGGAAAACCTCTCCTTTGGCAGTTGAAAAGGGTTTGGCTAGAAGCAAACATCAGCCAGGATTGGGGACCAAACTATCTGAGATGCACTTCTTCTAACTT"
+    }
+  },
+  "summary": "This synthetic regulatory element drives strong expression in blood cell types\u2014especially B cells and monocytes\u2014with clean manufacturability, but its moderate cross-tissue activity means it should be paired with a blood-targeted AAV capsid to minimize off-target expression.",
+  "cassette": {
+    "elements": [
+      "5'ITR",
+      "enhancer",
+      "minTBG",
+      "transgene",
+      "bGH_polyA",
+      "3'ITR"
+    ],
+    "lengths_bp": [
+      145,
+      200,
+      300,
+      1500,
+      230,
+      145
+    ],
+    "total_bp": 2520,
+    "aav_limit_bp": 4700,
+    "headroom_bp": 2180,
+    "promoter": "minTBG",
+    "enhancer_sequence": "ATGTCTAGCTTCCTCCTTTCAATTCCCCTTTGAGTTTGACAACTAGTCTATGTCGTTTGTTCTTTGCAAATGCTCACATGGATGAGAACCTTATCAGGAACTGGAAAACCTCTCCTTTGGCAGTTGAAAAGGGTTTGGCTAGAAGCAAACATCAGCCAGGATTGGGGACCAAACTATCTGAGATGCACTTCTTCTAACTT"
+  }
 }
