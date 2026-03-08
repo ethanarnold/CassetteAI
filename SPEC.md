@@ -156,12 +156,12 @@ def generate_elements(cell_type: str, n_samples: int = 200) -> list[str]:
 - HepG2 conditioning is available in the pretrained model. This is the liver/hepatocyte proxy.
 
 **Build checklist:**
-- [ ] Clone and inspect DNA-Diffusion repo; determine checkpoint availability
-- [ ] Build Modal image with pinned dependencies (torch, diffusers, accelerate, etc.)
-- [ ] Implement `generate_elements(cell_type, n_samples)` Modal function
-- [ ] Handle checkpoint loading (download or bundle in image)
+- [x] Clone and inspect DNA-Diffusion repo; determine checkpoint availability
+- [x] Build Modal image with pinned dependencies (torch, diffusers, accelerate, etc.)
+- [x] Implement `generate_elements(cell_type, n_samples)` Modal function
+- [x] Handle checkpoint loading (download or bundle in image)
 - [ ] Test: generate 200 HepG2-conditioned sequences, verify output is 200bp ACGT strings
-- [ ] Error handling: if weights fail to load, return clear error message (no fabrication)
+- [x] Error handling: if weights fail to load, return clear error message (no fabrication)
 
 ### 1B. Sei Scorer (`backend/modal_score.py`)
 
@@ -219,12 +219,12 @@ def score_elements(sequences: list[str]) -> list[dict]:
 ```
 
 **Build checklist:**
-- [ ] Clone and inspect Sei repo; determine model loading procedure
-- [ ] Build Modal image (separate from DNA-Diffusion if dependency conflicts)
-- [ ] Implement neutral flanking context padding (200bp → 4096bp, GC-balanced)
-- [ ] Implement `score_elements(sequences)` Modal function
-- [ ] Extract and return 40 sequence-class scores per element
-- [ ] Structure output: `{sequence, sei_scores, top_class, specificity_ratio}`
+- [x] Clone and inspect Sei repo; determine model loading procedure
+- [x] Build Modal image (separate from DNA-Diffusion if dependency conflicts)
+- [x] Implement neutral flanking context padding (200bp → 4096bp, GC-balanced)
+- [x] Implement `score_elements(sequences)` Modal function
+- [x] Extract and return 40 sequence-class scores per element
+- [x] Structure output: `{sequence, sei_scores, top_class, specificity_ratio}`
 - [ ] Test: score HepG2 sequences, confirm liver signal >> off-target signals
 
 ### 1C. Cache Layer (`backend/cache.py`)
@@ -279,9 +279,9 @@ def set_cache(prompt: str, stage: str, data):
 Each cached run stores: `generation.json`, `scoring.json`, `interpretation.json`, `cassette.json`.
 
 **Build checklist:**
-- [ ] Implement `cache_key()` with tissue-synonym normalization
-- [ ] Implement `get_cached(prompt, stage)` and `set_cache(prompt, stage, data)`
-- [ ] Cache directory structure: `cache/{key}/{stage}.json`
+- [x] Implement `cache_key()` with tissue-synonym normalization
+- [x] Implement `get_cached(prompt, stage)` and `set_cache(prompt, stage, data)`
+- [x] Cache directory structure: `cache/{key}/{stage}.json`
 
 ---
 
@@ -315,10 +315,10 @@ offer the closest available option.
 ```
 
 **Build checklist:**
-- [ ] Write CassetteAI system prompt with tissue mapping table
-- [ ] Include DNA-Diffusion conditioning label mapping (HepG2, K562, GM12878)
-- [ ] Include Sei tissue-class mapping
-- [ ] Include limitation disclosure language for unsupported tissues
+- [x] Write CassetteAI system prompt with tissue mapping table
+- [x] Include DNA-Diffusion conditioning label mapping (HepG2, K562, GM12878)
+- [x] Include Sei tissue-class mapping
+- [x] Include limitation disclosure language for unsupported tissues
 
 ### 2B. Interpretation Prompt (`prompts/interpret.md`)
 
@@ -356,10 +356,10 @@ a gene therapy scientist would understand.
 - Output a natural language summary suitable for a non-computational biologist
 
 **Build checklist:**
-- [ ] Write interpretation prompt: rank by specificity ratio, flag off-targets
-- [ ] Include sequence pathology checks (GC%, homopolymers, cryptic polyA, CpG density)
-- [ ] Include cassette composition instructions (pair with minTBG)
-- [ ] Include output format spec for structured JSON + natural language summary
+- [x] Write interpretation prompt: rank by specificity ratio, flag off-targets
+- [x] Include sequence pathology checks (GC%, homopolymers, cryptic polyA, CpG density)
+- [x] Include cassette composition instructions (pair with minTBG)
+- [x] Include output format spec for structured JSON + natural language summary
 
 ### 2C. Orchestrator (`backend/orchestrator.py`)
 
