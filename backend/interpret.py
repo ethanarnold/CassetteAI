@@ -120,6 +120,79 @@ def compute_pathology_flags(seq: str) -> tuple[float, float, list[str]]:
 
 
 # ---------------------------------------------------------------------------
+# Python re-ranking (replaces Claude-side re-ranking)
+# ---------------------------------------------------------------------------
+
+_ON_TARGET_CLASSES: dict[str, list[str]] = {
+    "liver": ["E9 Liver / Intestine", "TF1 NANOG / FOXA1", "TF3 FOXA1 / AR / ESR1"],
+    "cardiac": ["E12 Erythroblast-like", "P Promoter"],
+    "neural": ["E3 Brain / Melanocyte", "E10 Brain"],
+    "blood": ["E11 T-cell", "E5 B-cell-like", "E12 Erythroblast-like"],
+}
+
+_CRITICAL_FLAGS = {"CRYPTIC_POLYA", "HOMOPOLYMER"}
+
+
+def rerank_candidates(
+    sequences_with_scores: list[dict],
+    target_tissue: str,
+) -> list[dict]:
+    """Re-rank candidates by tissue-specific on-target score and specificity.
+
+    For each candidate:
+      1. Compute on_target_score = max(scores for on-target classes).
+      2. Compute specificity_ratio = on_target / max(other class scores).
+      3. Add pathology flags via compute_pathology_flags().
+      4. Sort: non-critical flags first, then specificity_ratio DESC, on_target DESC.
+
+    Returns list of dicts with added keys: on_target_score, specificity_ratio,
+    gc_pct, cpg_density, flags, has_critical_flag.
+    """
+    on_target_keys = set(_ON_TARGET_CLASSES.get(target_tissue, []))
+    ranked: list[dict] = []
+
+    for item in sequences_with_scores:
+        scores = item.get("sei_scores", {})
+        gc_pct, cpg_dens, flags = compute_pathology_flags(item["sequence"])
+
+        # On-target score = max across tissue-relevant classes
+        on_target = max(
+            (scores.get(k, 0.0) for k in on_target_keys), default=0.0
+        )
+
+        # Specificity = on_target / max(all other scores)
+        other_max = max(
+            (v for k, v in scores.items() if k not in on_target_keys),
+            default=1e-9,
+        )
+        specificity = on_target / max(other_max, 1e-9)
+
+        has_critical = bool(set(flags) & _CRITICAL_FLAGS)
+
+        ranked.append({
+            **item,
+            "on_target_score": round(on_target, 4),
+            "specificity_ratio": round(specificity, 4),
+            "gc_pct": round(gc_pct, 2),
+            "cpg_density": round(cpg_dens, 4),
+            "flags": flags,
+            "has_critical_flag": has_critical,
+        })
+
+    # Sort: non-critical first, then by specificity DESC, on_target DESC
+    ranked.sort(
+        key=lambda x: (
+            not x["has_critical_flag"],  # True (no critical) sorts first
+            x["specificity_ratio"],
+            x["on_target_score"],
+        ),
+        reverse=True,
+    )
+
+    return ranked
+
+
+# ---------------------------------------------------------------------------
 # Cassette composition
 # ---------------------------------------------------------------------------
 
@@ -189,19 +262,13 @@ async def interpret_scores(
     sequences_with_scores: list[dict],
     target_tissue: str,
 ) -> dict[str, Any]:
-    """Annotate sequences with pathology flags, then stream Claude Opus interpretation.
+    """Re-rank candidates in Python, then get Claude Opus recommendation for top 1.
 
     Steps:
-        1. Compute GC%, CpG density, and pathology flags for each candidate.
-        2. Send annotated data to Claude Opus (claude-opus-4-6) using interpret.md
-           as the system prompt, streaming the response.
-        3. Extract structured JSON from the streamed response.
-        4. Attach code-computed cassette composition for the top-ranked candidate.
-
-    Args:
-        sequences_with_scores: Output from score_elements() — each dict must have
-            'sequence', 'sei_scores', 'top_class', 'specificity_ratio'.
-        target_tissue: Canonical tissue name ('liver', 'cardiac', 'neural', 'blood').
+        1. Python re-ranking via rerank_candidates() (pathology, specificity).
+        2. Build ranking entry and cassette for top candidate.
+        3. Send only top 1's key scores to Claude Opus (max_tokens=1024) for
+           a focused 2-3 sentence scientific recommendation.
 
     Returns:
         Dict with keys 'ranking', 'recommendation', 'summary', 'cassette'.
@@ -209,83 +276,69 @@ async def interpret_scores(
     client = get_anthropic_client()
     system_prompt = _load_interpret_prompt()
 
-    # Annotate each candidate with pre-computed pathology data
-    annotated: list[dict] = []
-    for item in sequences_with_scores:
-        gc_pct, cpg_dens, flags = compute_pathology_flags(item["sequence"])
-        annotated.append(
-            {
-                **item,
-                "gc_pct": round(gc_pct, 2),
-                "cpg_density": round(cpg_dens, 4),
-                "flags": flags,
-            }
-        )
+    # Step 1: Python re-ranking
+    ranked = rerank_candidates(sequences_with_scores, target_tissue)
+    top = ranked[0] if ranked else None
 
-    # Pre-filter: sort by specificity_ratio and keep top 20 candidates.
-    # The prompt only needs top 5; sending 20 gives Claude enough to re-rank.
-    annotated.sort(key=lambda x: x.get("specificity_ratio", 0), reverse=True)
-    annotated = annotated[:20]
+    if not top:
+        return {"ranking": [], "recommendation": {}, "summary": "No candidates.", "cassette": {}}
 
-    # Trim sei_scores to tissue-relevant classes + top scorers to reduce tokens.
-    _TISSUE_CLASSES: dict[str, list[str]] = {
-        "liver": [
-            "E9 Liver / Intestine", "TF1 NANOG / FOXA1",
-            "TF3 FOXA1 / AR / ESR1", "TF2 CEBPB", "P Promoter",
-        ],
-        "cardiac": [
-            "E12 Erythroblast-like", "P Promoter",
-            "E4 Multi-tissue", "E2 Multi-tissue",
-        ],
-        "neural": [
-            "E3 Brain / Melanocyte", "E10 Brain",
-            "E4 Multi-tissue", "P Promoter",
-        ],
-        "blood": [
-            "E11 T-cell", "E5 B-cell-like", "E12 Erythroblast-like",
-            "P Promoter",
-        ],
+    # Step 2: Build ranking entry + cassette
+    seq = top["sequence"]
+    seq_display = seq[:20] + "..." + seq[-20:] if len(seq) > 44 else seq
+    cassette = compose_cassette(seq)
+
+    ranking_entry = {
+        "rank": 1,
+        "sequence": seq,
+        "sequence_display": seq_display,
+        "on_target_score": top["on_target_score"],
+        "specificity_ratio": top["specificity_ratio"],
+        "top_class": top.get("top_class", ""),
+        "flags": top["flags"],
     }
-    keep_classes = set(_TISSUE_CLASSES.get(target_tissue, []))
-    for item in annotated:
-        scores = item.get("sei_scores", {})
-        # Always include tissue-relevant classes + top 5 by value
-        top_keys = sorted(scores, key=lambda k: scores[k], reverse=True)[:5]
-        trimmed = {k: round(v, 4) for k, v in scores.items()
-                   if k in keep_classes or k in top_keys}
-        item["sei_scores"] = trimmed
+
+    # Step 3: Send only top 1 to Claude Opus for recommendation
+    # Trim sei_scores to top 8 by value to keep token count low
+    scores = top.get("sei_scores", {})
+    top_keys = sorted(scores, key=lambda k: scores[k], reverse=True)[:8]
+    trimmed_scores = {k: round(scores[k], 4) for k in top_keys}
 
     user_content = (
         f"Target tissue: {target_tissue}\n\n"
-        f"Candidate elements (JSON):\n```json\n"
-        f"{json.dumps(annotated, indent=2)}\n```"
+        f"Top candidate (rank 1 of {len(ranked)}):\n"
+        f"- On-target score: {top['on_target_score']}\n"
+        f"- Specificity ratio: {top['specificity_ratio']}\n"
+        f"- Top Sei class: {top.get('top_class', 'N/A')}\n"
+        f"- GC%: {top['gc_pct']}\n"
+        f"- Flags: {', '.join(top['flags']) or 'none'}\n"
+        f"- Key scores: {json.dumps(trimmed_scores)}\n"
     )
 
-    # Stream from Claude Opus
     full_response = ""
     async with client.messages.stream(
         model="claude-opus-4-6",
-        max_tokens=4096,
+        max_tokens=1024,
         system=system_prompt,
         messages=[{"role": "user", "content": user_content}],
     ) as stream:
         async for text in stream.text_stream:
             full_response += text
 
-    # Parse structured JSON from response
     parsed = _extract_json(full_response)
+    explanation = parsed.get("explanation", full_response.strip())
+    summary = parsed.get("summary", explanation[:200])
 
-    # Override cassette with code-computed values (authoritative source of truth)
-    ranking = parsed.get("ranking", [])
-    if ranking:
-        top_seq = ranking[0].get("sequence", "")
-        if top_seq:
-            cassette = compose_cassette(top_seq)
-            parsed["cassette"] = cassette
-            if "recommendation" in parsed:
-                parsed["recommendation"]["cassette"] = cassette
-
-    return parsed
+    return {
+        "ranking": [ranking_entry],
+        "recommendation": {
+            "rank": 1,
+            "explanation": explanation,
+            "cassette": cassette,
+        },
+        "summary": summary,
+        "cassette": cassette,
+    }
 
 
 def _extract_json(text: str) -> dict[str, Any]:

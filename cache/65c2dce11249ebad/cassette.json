@@ -1,0 +1,23 @@
+{
+  "elements": [
+    "5'ITR",
+    "enhancer",
+    "minTBG",
+    "transgene",
+    "bGH_polyA",
+    "3'ITR"
+  ],
+  "lengths_bp": [
+    145,
+    200,
+    300,
+    1500,
+    230,
+    145
+  ],
+  "total_bp": 2520,
+  "aav_limit_bp": 4700,
+  "headroom_bp": 2180,
+  "promoter": "minTBG",
+  "enhancer_sequence": "GCTTATACATTCTGTCAGAACAGTAGATCAAGCCTTGTGAATTTAGACATGAGGACTTCCTCAAGAGATTCAAAGTGTCCAGCCCCCACCCTTATCTTCCTTCCATGCAGAATCCCCTCTCTCAAGGTCCTTGCCCATGGCCTTATCTCCATTCTCCAGATGCTCAAAATTTGAGTGCCTCATGAGCATCTTTCTCCTTC"
+}

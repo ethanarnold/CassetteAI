@@ -1,107 +1,95 @@
-import { useState, useMemo } from 'react'
+import { useMemo } from 'react'
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  Tooltip,
+  ResponsiveContainer,
+  Cell,
+} from 'recharts'
 
 /**
- * Sei sequence classes to show as columns, grouped by tissue/function.
- * Ordered so biologically related classes are adjacent.
+ * Tissue groups: each maps to one or more Sei sequence classes.
+ * The bar value = max score across that group's classes for the top candidate.
  */
-const DISPLAY_CLASSES = [
-  { key: 'E9 Liver / Intestine',      group: 'Liver',    label: 'Liver'    },
-  { key: 'E3 Brain / Melanocyte',     group: 'Brain',    label: 'Brain'    },
-  { key: 'E10 Brain',                 group: 'Brain',    label: 'Brain 2'  },
-  { key: 'E5 B-cell-like',            group: 'Blood',    label: 'B-cell'   },
-  { key: 'E7 Monocyte / Macrophage',  group: 'Blood',    label: 'Mono.'    },
-  { key: 'E11 T-cell',                group: 'Blood',    label: 'T-cell'   },
-  { key: 'E12 Erythroblast-like',     group: 'Blood',    label: 'Erythro.' },
-  { key: 'E1 Stem cell',              group: 'Stem',     label: 'Stem'     },
-  { key: 'P Promoter',                group: 'Promoter', label: 'Promoter' },
+const TISSUE_GROUPS = [
+  { name: 'Liver',        keys: ['E9 Liver / Intestine'] },
+  { name: 'Brain',        keys: ['E3 Brain / Melanocyte', 'E10 Brain'] },
+  { name: 'Blood/Immune', keys: ['E5 B-cell-like', 'E7 Monocyte / Macrophage', 'E11 T-cell', 'E12 Erythroblast-like'] },
+  { name: 'Stem',         keys: ['E1 Stem cell'] },
+  { name: 'Promoter',     keys: ['P Promoter'] },
+  { name: 'Multi-tissue', keys: ['E2 Multi-tissue', 'E4 Multi-tissue'] },
 ]
 
-/**
- * Hardcoded mapping from tissue key (from orchestrator) to the Sei class
- * used for sorting and highlighting.
- */
-const TISSUE_SORT_CLASS = {
-  liver:   'E9 Liver / Intestine',
-  cardiac: 'E5 B-cell-like',        // K562 proxy — best blood/cardiac marker
-  neural:  'E3 Brain / Melanocyte',
-  blood:   'E5 B-cell-like',
+/** Map tissue key → which bar group to highlight */
+const TISSUE_HIGHLIGHT = {
+  liver:   'Liver',
+  cardiac: 'Blood/Immune',
+  neural:  'Brain',
+  blood:   'Blood/Immune',
 }
 
-const GROUP_COLORS = {
-  Liver:    '#0891b2',
-  Brain:    '#7c3aed',
-  Blood:    '#dc2626',
-  Stem:     '#d97706',
-  Promoter: '#64748b',
-  Target:   '#22d3ee',
-}
+const BAR_COLOR = '#334155'
+const HIGHLIGHT_COLOR = '#22d3ee'
 
-function lerp(a, b, t) {
-  return a + (b - a) * t
+function CustomTooltip({ active, payload }) {
+  if (!active || !payload?.length) return null
+  const d = payload[0].payload
+  return (
+    <div
+      style={{
+        background: '#1e293b',
+        border: '1px solid #334155',
+        borderRadius: '6px',
+        padding: '8px 12px',
+        color: '#e2e8f0',
+        fontSize: '12px',
+      }}
+    >
+      <div style={{ fontWeight: 600, marginBottom: 2 }}>{d.name}</div>
+      <div>
+        Score: <span style={{ color: '#22d3ee' }}>{d.score.toFixed(4)}</span>
+      </div>
+    </div>
+  )
 }
-
-/**
- * Map a normalized score t ∈ [0,1] to a color.
- * Palette: dark blue (silent) → near-black (mid) → dark red (active).
- * Chosen to pop on a very dark background.
- */
-function scoreToColor(t) {
-  const c = Math.max(0, Math.min(1, t))
-  let r, g, b
-  if (c < 0.5) {
-    const u = c * 2
-    // rgb(0,40,160) → rgb(10,10,10)
-    r = Math.round(lerp(0, 10, u))
-    g = Math.round(lerp(40, 10, u))
-    b = Math.round(lerp(160, 10, u))
-  } else {
-    const u = (c - 0.5) * 2
-    // rgb(10,10,10) → rgb(210,30,30)
-    r = Math.round(lerp(10, 210, u))
-    g = Math.round(lerp(10, 30, u))
-    b = Math.round(lerp(10, 30, u))
-  }
-  return `rgb(${r},${g},${b})`
-}
-
-const CELL_W = 42
-const CELL_H = 26
 
 export default function Heatmap({ tissue, scoringData, interpretationData }) {
-  const [tooltip, setTooltip] = useState(null)
+  const barData = useMemo(() => {
+    if (!scoringData || scoringData.length === 0) return null
 
-  const { top10, displayClasses, normalize, sortClass, highlightClass } = useMemo(() => {
-    if (!scoringData || scoringData.length === 0) {
-      return { top10: [], displayClasses: DISPLAY_CLASSES, normalize: () => 0.5, sortClass: null, highlightClass: null }
+    // Find the top candidate: match ranking[0].sequence against scoringData,
+    // or fall back to first candidate sorted by specificity_ratio
+    let topCandidate = null
+    const topSeq = interpretationData?.ranking?.[0]?.sequence
+    if (topSeq) {
+      topCandidate = scoringData.find((d) => d.sequence === topSeq)
+    }
+    if (!topCandidate) {
+      // Fallback: pick highest specificity_ratio from scoring data
+      topCandidate = [...scoringData].sort(
+        (a, b) => (b.specificity_ratio ?? 0) - (a.specificity_ratio ?? 0)
+      )[0]
     }
 
-    // Use hardcoded tissue → Sei class mapping for sorting and highlighting
-    const highlightClass = TISSUE_SORT_CLASS[tissue] || 'E9 Liver / Intestine'
-    const sortClass = highlightClass
+    const scores = topCandidate?.sei_scores ?? {}
+    const highlightGroup = TISSUE_HIGHLIGHT[tissue] || 'Liver'
 
-    // Keep column order as defined — no reordering
-    const displayClasses = DISPLAY_CLASSES
+    return TISSUE_GROUPS.map((group) => {
+      const maxScore = Math.max(
+        ...group.keys.map((k) => scores[k] ?? 0),
+        0
+      )
+      return {
+        name: group.name,
+        score: maxScore,
+        isTarget: group.name === highlightGroup,
+      }
+    })
+  }, [tissue, scoringData, interpretationData])
 
-    // Sort all candidates by dominant class score, take top 10
-    const sorted = [...scoringData].sort(
-      (a, b) =>
-        (b.sei_scores?.[sortClass] ?? 0) - (a.sei_scores?.[sortClass] ?? 0)
-    )
-    const top10 = sorted.slice(0, 10)
-
-    // Global min/max across the displayed cells for normalization
-    const allVals = top10.flatMap((d) =>
-      displayClasses.map((c) => d.sei_scores?.[c.key] ?? 0)
-    )
-    const minVal = Math.min(...allVals)
-    const maxVal = Math.max(...allVals)
-    const range = maxVal - minVal || 1
-    const normalize = (v) => (v - minVal) / range
-
-    return { top10, displayClasses, normalize, sortClass, highlightClass }
-  }, [tissue, scoringData])
-
-  if (!scoringData || scoringData.length === 0) {
+  if (!barData) {
     return (
       <div
         className="h-full flex items-center justify-center text-center p-8"
@@ -120,172 +108,53 @@ export default function Heatmap({ tissue, scoringData, interpretationData }) {
     )
   }
 
-  // Group headers spanning their columns
-  const groups = []
-  displayClasses.forEach((c) => {
-    const last = groups[groups.length - 1]
-    if (last && last.group === c.group) {
-      last.count++
-    } else {
-      groups.push({ group: c.group, count: 1 })
-    }
-  })
+  const specRatio = interpretationData?.ranking?.[0]?.specificity_ratio
 
   return (
-    <div className="p-4 h-full overflow-auto relative">
+    <div className="p-4 h-full flex flex-col">
       <div className="flex items-baseline gap-3 mb-3">
         <h2 className="text-sm font-semibold" style={{ color: '#94a3b8' }}>
-          Tissue Specificity Scores
+          Tissue Specificity — Top Candidate
         </h2>
-        <span className="text-xs" style={{ color: '#475569' }}>
-          top 10 of {scoringData.length} candidates · sorted by {sortClass}
-        </span>
-      </div>
-
-      {/* Fixed tooltip */}
-      {tooltip && (
-        <div
-          className="fixed z-50 pointer-events-none rounded-lg px-3 py-2 text-xs"
-          style={{
-            left: tooltip.x,
-            top: tooltip.y - 56,
-            transform: 'translateX(-50%)',
-            background: '#1e293b',
-            border: '1px solid #334155',
-            color: '#e2e8f0',
-            minWidth: '160px',
-          }}
-        >
-          <div className="font-bold mb-0.5">Candidate {tooltip.ri + 1}</div>
-          <div style={{ color: '#94a3b8', fontSize: '10px' }}>{tooltip.classKey}</div>
-          <div>
-            Score:{' '}
-            <span style={{ color: '#22d3ee' }}>{tooltip.score.toFixed(4)}</span>
-          </div>
-        </div>
-      )}
-
-      <div className="overflow-x-auto">
-        <table style={{ borderCollapse: 'separate', borderSpacing: '2px' }}>
-          {/* Group header row */}
-          <thead>
-            <tr>
-              <th style={{ width: '72px' }} />
-              {groups.map((g, gi) => (
-                <th
-                  key={gi}
-                  colSpan={g.count}
-                  className="text-center pb-1 text-xs font-semibold"
-                  style={{
-                    color: GROUP_COLORS[g.group] || '#475569',
-                    letterSpacing: '0.05em',
-                    fontSize: '10px',
-                  }}
-                >
-                  {g.group}
-                </th>
-              ))}
-            </tr>
-
-            {/* Class label row */}
-            <tr>
-              <th style={{ width: '72px' }} />
-              {displayClasses.map((c, ci) => (
-                <th
-                  key={ci}
-                  className="text-center"
-                  style={{
-                    width: `${CELL_W}px`,
-                    fontSize: '9px',
-                    color: c.key === highlightClass ? '#22d3ee' : '#64748b',
-                    fontWeight: c.key === highlightClass ? 700 : 400,
-                    paddingBottom: '4px',
-                  }}
-                >
-                  {c.label}
-                </th>
-              ))}
-            </tr>
-          </thead>
-
-          {/* Data rows */}
-          <tbody>
-            {top10.map((cand, ri) => (
-              <tr key={ri}>
-                <td
-                  className="text-right pr-2"
-                  style={{
-                    fontSize: '10px',
-                    color: '#475569',
-                    whiteSpace: 'nowrap',
-                  }}
-                >
-                  Cand. {ri + 1}
-                </td>
-                {displayClasses.map((c, ci) => {
-                  const score = cand.sei_scores?.[c.key] ?? 0
-                  const t = normalize(score)
-                  const bg = scoreToColor(t)
-                  const isTarget = c.key === highlightClass
-                  return (
-                    <td
-                      key={ci}
-                      style={{
-                        background: bg,
-                        width: `${CELL_W}px`,
-                        height: `${CELL_H}px`,
-                        border: isTarget
-                          ? '1px solid rgba(34,211,238,0.35)'
-                          : '1px solid #0f1117',
-                        cursor: 'crosshair',
-                      }}
-                      onMouseEnter={(e) => {
-                        const rect = e.currentTarget.getBoundingClientRect()
-                        setTooltip({
-                          x: rect.left + rect.width / 2,
-                          y: rect.top,
-                          ri,
-                          classKey: c.key,
-                          score,
-                        })
-                      }}
-                      onMouseLeave={() => setTooltip(null)}
-                    />
-                  )
-                })}
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-
-      {/* Color scale legend */}
-      <div className="flex items-center gap-2 mt-4" style={{ maxWidth: '220px' }}>
-        <span className="text-xs" style={{ color: '#475569' }}>
-          low
-        </span>
-        <div
-          className="flex-1 rounded"
-          style={{
-            height: '10px',
-            background:
-              'linear-gradient(to right, rgb(0,40,160), rgb(10,10,10), rgb(210,30,30))',
-          }}
-        />
-        <span className="text-xs" style={{ color: '#475569' }}>
-          high
-        </span>
-      </div>
-
-      {/* Ranking from interpretation */}
-      {interpretationData?.ranking?.length > 0 && (
-        <div className="mt-4 text-xs" style={{ color: '#475569' }}>
-          <span style={{ color: '#22d3ee' }}>★</span> Top candidate specificity ratio:{' '}
-          <span style={{ color: '#94a3b8' }}>
-            {interpretationData.ranking[0].specificity_ratio?.toFixed(2) ?? '—'}x
+        {specRatio != null && (
+          <span className="text-xs" style={{ color: '#475569' }}>
+            <span style={{ color: '#22d3ee' }}>★</span> specificity{' '}
+            <span style={{ color: '#94a3b8' }}>{specRatio.toFixed(2)}x</span>
           </span>
-        </div>
-      )}
+        )}
+      </div>
+
+      <div style={{ flex: 1, minHeight: 0 }}>
+        <ResponsiveContainer width="100%" height="100%">
+          <BarChart
+            data={barData}
+            margin={{ top: 8, right: 16, bottom: 4, left: 0 }}
+          >
+            <XAxis
+              dataKey="name"
+              tick={{ fill: '#64748b', fontSize: 11 }}
+              axisLine={{ stroke: '#1e293b' }}
+              tickLine={false}
+            />
+            <YAxis
+              tick={{ fill: '#475569', fontSize: 10 }}
+              axisLine={false}
+              tickLine={false}
+              width={40}
+            />
+            <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(255,255,255,0.03)' }} />
+            <Bar dataKey="score" radius={[4, 4, 0, 0]} maxBarSize={48}>
+              {barData.map((entry, i) => (
+                <Cell
+                  key={i}
+                  fill={entry.isTarget ? HIGHLIGHT_COLOR : BAR_COLOR}
+                  opacity={entry.isTarget ? 1 : 0.7}
+                />
+              ))}
+            </Bar>
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
     </div>
   )
 }
