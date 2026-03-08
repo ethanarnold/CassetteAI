@@ -76,29 +76,28 @@ const TISSUE_HIGHLIGHT_KEYS = {
   blood:   ['E7 Monocyte / Macrophage', 'E11 T-cell', 'E5 B-cell-like', 'E12 Erythroblast-like', 'TF2 CEBPB'],
 }
 
-const HIGHLIGHT_BORDER = '#ffffff'
+const HIGHLIGHT_BORDER = '#0891b2'
 
 function CustomTooltip({ active, payload }) {
   if (!active || !payload?.length) return null
   const d = payload[0].payload
   return (
     <div
+      className="glass"
       style={{
-        background: '#1e293b',
-        border: '1px solid #334155',
-        borderRadius: '6px',
         padding: '8px 12px',
-        color: '#e2e8f0',
-        fontSize: '12px',
+        color: '#1a1a1a',
+        fontSize: 12,
         maxWidth: 260,
+        borderRadius: 10,
       }}
     >
       <div style={{ fontWeight: 600, marginBottom: 2 }}>{d.fullName}</div>
       <div>
-        Score: <span style={{ color: '#22d3ee' }}>{d.score.toFixed(4)}</span>
+        Score: <span style={{ color: '#0891b2', fontWeight: 600 }}>{d.score.toFixed(4)}</span>
       </div>
       {d.isTarget && (
-        <div style={{ color: '#22d3ee', fontSize: 11, marginTop: 2 }}>
+        <div style={{ color: '#0891b2', fontSize: 11, marginTop: 2 }}>
           ★ on-target class
         </div>
       )}
@@ -154,37 +153,21 @@ export default function Heatmap({ tissue, scoringData, interpretationData }) {
     return categoryOrder.flatMap((cat) => categoryBars[cat])
   }, [tissue, scoringData, interpretationData])
 
-  if (!barData) {
-    return (
-      <div
-        className="h-full flex items-center justify-center text-center p-8"
-        style={{ color: '#475569' }}
-      >
-        <div>
-          <div className="text-5xl mb-4">📊</div>
-          <p className="text-base font-semibold mb-1" style={{ color: '#64748b' }}>
-            Tissue Specificity Scores
-          </p>
-          <p className="text-sm">
-            Submit a design prompt to see tissue specificity scores
-          </p>
-        </div>
-      </div>
-    )
-  }
+  /* No data → render nothing (blank cream space) */
+  if (!barData) return null
 
   const specRatio = interpretationData?.ranking?.[0]?.specificity_ratio
 
   return (
-    <div className="p-4 h-full flex flex-col">
+    <div className="p-4 h-full flex flex-col fade-in">
       <div className="flex items-baseline gap-3 mb-3">
-        <h2 className="text-sm font-semibold" style={{ color: '#94a3b8' }}>
+        <h2 className="text-sm font-semibold" style={{ color: '#6b7280' }}>
           Tissue Specificity — Top Candidate
         </h2>
         {specRatio != null && (
-          <span className="text-xs" style={{ color: '#475569' }}>
-            <span style={{ color: '#22d3ee' }}>★</span> specificity{' '}
-            <span style={{ color: '#94a3b8' }}>{specRatio.toFixed(2)}x</span>
+          <span className="text-xs" style={{ color: '#9ca3af' }}>
+            <span style={{ color: '#0891b2' }}>★</span> specificity{' '}
+            <span style={{ color: '#6b7280' }}>{specRatio.toFixed(2)}x</span>
           </span>
         )}
       </div>
@@ -197,8 +180,8 @@ export default function Heatmap({ tissue, scoringData, interpretationData }) {
           >
             <XAxis
               dataKey="name"
-              tick={{ fill: '#64748b', fontSize: 9 }}
-              axisLine={{ stroke: '#1e293b' }}
+              tick={{ fill: '#6b7280', fontSize: 9 }}
+              axisLine={{ stroke: '#e5e7eb' }}
               tickLine={false}
               angle={-45}
               textAnchor="end"
@@ -206,12 +189,12 @@ export default function Heatmap({ tissue, scoringData, interpretationData }) {
               height={60}
             />
             <YAxis
-              tick={{ fill: '#475569', fontSize: 10 }}
+              tick={{ fill: '#9ca3af', fontSize: 10 }}
               axisLine={false}
               tickLine={false}
               width={40}
             />
-            <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(255,255,255,0.03)' }} />
+            <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(0,0,0,0.03)' }} />
             <Bar dataKey="score" radius={[2, 2, 0, 0]} maxBarSize={20}>
               {barData.map((entry, i) => (
                 <Cell

@@ -2,15 +2,15 @@
  *
  * Layout (proportional to bp / aav_limit_bp so unused capacity is visible):
  *   5'ITR ── Enhancer ── minTBG ── Transgene ── bGH polyA ── 3'ITR
- *                 ← designed element glows in teal →
+ *                 ← designed element highlighted →
  *
  * Progress bar shows total cassette length vs 4,700 bp AAV limit.
  */
 
 const ELEMENT_COLORS = {
-  "5'ITR":      '#475569',
-  "3'ITR":      '#475569',
-  enhancer:     '#06b6d4',
+  "5'ITR":      '#94a3b8',
+  "3'ITR":      '#94a3b8',
+  enhancer:     '#0891b2',
   minTBG:       '#3b82f6',
   minCMV:       '#3b82f6',
   transgene:    '#7c3aed',
@@ -28,15 +28,15 @@ const ELEMENT_LABELS = {
 }
 
 const LEGEND_ITEMS = [
-  { color: '#475569', label: 'ITRs' },
-  { color: '#06b6d4', label: 'Enhancer (designed)' },
+  { color: '#94a3b8', label: 'ITRs' },
+  { color: '#0891b2', label: 'Enhancer (designed)' },
   { color: '#3b82f6', label: 'Minimal promoter' },
   { color: '#7c3aed', label: 'Transgene' },
   { color: '#d97706', label: 'bGH polyA' },
 ]
 
 function getColor(name) {
-  return ELEMENT_COLORS[name] ?? '#6b7280'
+  return ELEMENT_COLORS[name] ?? '#9ca3af'
 }
 
 function getLabel(name) {
@@ -59,24 +59,8 @@ const DRAW_X = 16
 const DRAW_W = SVG_W - 32
 
 export default function CassetteDiagram({ data }) {
-  if (!data) {
-    return (
-      <div
-        className="h-full flex items-center justify-center text-center p-8"
-        style={{ color: '#475569' }}
-      >
-        <div>
-          <div className="text-5xl mb-4">🧬</div>
-          <p className="text-base font-semibold mb-1" style={{ color: '#64748b' }}>
-            AAV Cassette Diagram
-          </p>
-          <p className="text-sm">
-            Submit a design prompt to see the cassette composition
-          </p>
-        </div>
-      </div>
-    )
-  }
+  /* No data → render nothing (blank cream space) */
+  if (!data) return null
 
   const {
     elements = [],
@@ -105,12 +89,12 @@ export default function CassetteDiagram({ data }) {
   const WIDE_THRESHOLD = 48
 
   return (
-    <div className="p-4 h-full overflow-auto flex flex-col gap-3">
+    <div className="p-4 h-full overflow-auto flex flex-col gap-3 fade-in">
       <div className="flex items-baseline gap-3">
-        <h2 className="text-sm font-semibold" style={{ color: '#94a3b8' }}>
+        <h2 className="text-sm font-semibold" style={{ color: '#6b7280' }}>
           AAV Cassette Design
         </h2>
-        <span className="text-xs" style={{ color: '#475569' }}>
+        <span className="text-xs" style={{ color: '#9ca3af' }}>
           5'ITR — Enhancer — Promoter — Transgene — polyA — 3'ITR
         </span>
       </div>
@@ -148,7 +132,7 @@ export default function CassetteDiagram({ data }) {
                   dominantBaseline="middle"
                   fontSize="11"
                   fontWeight={isEnhancer ? 'bold' : 'normal'}
-                  fill={isEnhancer ? '#fff' : 'rgba(255,255,255,0.85)'}
+                  fill={isEnhancer ? '#fff' : 'rgba(255,255,255,0.9)'}
                   style={{ userSelect: 'none' }}
                 >
                   {label}
@@ -161,7 +145,7 @@ export default function CassetteDiagram({ data }) {
                     y1={LABEL_Y + 7}
                     x2={r.cx}
                     y2={RECT_Y - 1}
-                    stroke="#334155"
+                    stroke="#d4d4d4"
                     strokeWidth="0.8"
                   />
                   <text
@@ -170,7 +154,7 @@ export default function CassetteDiagram({ data }) {
                     textAnchor="middle"
                     dominantBaseline="middle"
                     fontSize="9"
-                    fill={isEnhancer ? '#22d3ee' : '#64748b'}
+                    fill={isEnhancer ? '#0891b2' : '#6b7280'}
                     fontWeight={isEnhancer ? 'bold' : 'normal'}
                     style={{ userSelect: 'none' }}
                   >
@@ -197,7 +181,7 @@ export default function CassetteDiagram({ data }) {
                   y1={RECT_Y}
                   x2={r.x}
                   y2={RECT_BOT}
-                  stroke="#0f1117"
+                  stroke="#FAF9F6"
                   strokeWidth="1.5"
                 />
               )}
@@ -208,7 +192,7 @@ export default function CassetteDiagram({ data }) {
                 y={BP_Y}
                 textAnchor="middle"
                 fontSize="9"
-                fill="#475569"
+                fill="#9ca3af"
                 style={{ userSelect: 'none' }}
               >
                 {r.bp} bp
@@ -224,21 +208,21 @@ export default function CassetteDiagram({ data }) {
           width={DRAW_W}
           height={RECT_H}
           fill="none"
-          stroke="#1e293b"
+          stroke="#d4d4d4"
           strokeWidth="1"
           strokeDasharray="4 3"
           rx="3"
         />
 
         {/* Progress bar track */}
-        <rect x={DRAW_X} y={BAR_Y} width={DRAW_W} height={BAR_H} fill="#1e293b" rx="6" />
+        <rect x={DRAW_X} y={BAR_Y} width={DRAW_W} height={BAR_H} fill="#e5e7eb" rx="6" />
         {/* Progress fill */}
         <rect
           x={DRAW_X}
           y={BAR_Y}
           width={progressW}
           height={BAR_H}
-          fill={isOverLimit ? '#ef4444' : '#22c55e'}
+          fill={isOverLimit ? '#ef4444' : '#16a34a'}
           rx="6"
         />
 
@@ -248,7 +232,7 @@ export default function CassetteDiagram({ data }) {
           y={BAR_TEXT_Y}
           textAnchor="middle"
           fontSize="11"
-          fill={isOverLimit ? '#f87171' : '#4ade80'}
+          fill={isOverLimit ? '#dc2626' : '#16a34a'}
         >
           Total: {total_bp.toLocaleString()} bp / {aav_limit_bp.toLocaleString()} bp AAV limit
           {!isOverLimit
@@ -261,14 +245,17 @@ export default function CassetteDiagram({ data }) {
       {warning && (
         <div
           className="rounded-lg px-3 py-2 text-xs"
-          style={{ background: '#1c0808', color: '#f87171', border: '1px solid #7f1d1d' }}
+          style={{ background: '#fef2f2', color: '#dc2626', border: '1px solid #fecaca' }}
         >
           ⚠️ {warning}
         </div>
       )}
 
-      {/* Color legend */}
-      <div className="flex flex-wrap gap-4 text-xs" style={{ color: '#64748b' }}>
+      {/* Color legend — glass card */}
+      <div
+        className="glass flex flex-wrap gap-4 text-xs"
+        style={{ color: '#6b7280', padding: '8px 14px', borderRadius: 12 }}
+      >
         {LEGEND_ITEMS.map((item) => (
           <div key={item.label} className="flex items-center gap-1.5">
             <div
@@ -280,17 +267,17 @@ export default function CassetteDiagram({ data }) {
         ))}
       </div>
 
-      {/* Enhancer sequence preview */}
+      {/* Enhancer sequence preview — glass card */}
       {enhancer_sequence && (
         <div
-          className="rounded-lg p-2 text-xs font-mono"
-          style={{ background: '#0d1929', color: '#22d3ee', border: '1px solid #1e2d40' }}
+          className="glass rounded-lg p-2 text-xs font-mono"
+          style={{ color: '#0891b2', borderRadius: 12 }}
         >
-          <span style={{ color: '#475569' }}>Enhancer: </span>
+          <span style={{ color: '#9ca3af' }}>Enhancer: </span>
           {enhancer_sequence.slice(0, 30)}
-          <span style={{ color: '#475569' }}>…</span>
+          <span style={{ color: '#9ca3af' }}>…</span>
           {enhancer_sequence.slice(-10)}
-          <span className="ml-2" style={{ color: '#475569' }}>
+          <span className="ml-2" style={{ color: '#9ca3af' }}>
             ({enhancer_sequence.length} bp)
           </span>
         </div>

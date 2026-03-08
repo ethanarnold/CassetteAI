@@ -10,30 +10,21 @@ const STAGE_ICONS = {
   interpreting: '🔬',
 }
 
-const WELCOME =
-  'Welcome to CassetteAI!\n\n' +
-  'Describe your gene therapy design goal and I will:\n' +
-  '  🧬  Generate 200 candidate regulatory elements\n' +
-  '  📊  Score tissue specificity with Sei\n' +
-  '  🔬  Rank and interpret results with Claude\n' +
-  '  🧬  Compose an AAV cassette diagram\n\n' +
-  'Try: "Design a liver-specific enhancer for AAV delivery"'
-
 function PipelineStatus({ stages, done, error }) {
   return (
     <div
-      className="rounded-xl p-3 space-y-1.5"
-      style={{ background: '#0d1929', border: '1px solid #1e2d40', fontSize: '15px' }}
+      className="glass rounded-xl p-3 space-y-1.5"
+      style={{ fontSize: 15 }}
     >
       {stages.map((s, i) => (
         <div key={i} className="flex items-start gap-2">
           <span className="shrink-0">{STAGE_ICONS[s.stage] || '•'}</span>
-          <span style={{ color: '#94a3b8' }}>{s.message}</span>
+          <span style={{ color: '#6b7280' }}>{s.message}</span>
         </div>
       ))}
 
       {!done && stages.length > 0 && (
-        <div className="flex items-center gap-2 text-xs" style={{ color: '#475569' }}>
+        <div className="flex items-center gap-2 text-xs" style={{ color: '#9ca3af' }}>
           <span className="loading-dots" aria-label="Processing">
             <span /><span /><span />
           </span>
@@ -42,7 +33,7 @@ function PipelineStatus({ stages, done, error }) {
       )}
 
       {done && !error && stages.length > 0 && (
-        <div className="text-xs" style={{ color: '#22c55e' }}>
+        <div className="text-xs" style={{ color: '#16a34a' }}>
           ✓ Pipeline complete
         </div>
       )}
@@ -50,7 +41,7 @@ function PipelineStatus({ stages, done, error }) {
       {error && (
         <div
           className="rounded-lg p-2 mt-1 text-xs"
-          style={{ background: '#1c0808', color: '#f87171', border: '1px solid #7f1d1d' }}
+          style={{ background: '#fef2f2', color: '#dc2626', border: '1px solid #fecaca' }}
         >
           ⚠️ {error}
         </div>
@@ -63,8 +54,13 @@ function UserBubble({ content }) {
   return (
     <div className="flex justify-end">
       <div
-        className="max-w-4/5 rounded-2xl rounded-tr-sm px-4 py-2 text-sm"
-        style={{ background: '#0e7490', color: '#e0f7ff', maxWidth: '80%' }}
+        className="max-w-4/5 rounded-2xl px-4 py-2 text-sm"
+        style={{
+          background: '#ffffff',
+          color: '#1a1a1a',
+          border: '1px solid #e5e7eb',
+          maxWidth: '80%',
+        }}
       >
         {content}
       </div>
@@ -76,12 +72,11 @@ function AssistantBubble({ content, isError }) {
   return (
     <div className="flex justify-start">
       <div
-        className="rounded-2xl rounded-tl-sm px-4 py-3 text-sm whitespace-pre-wrap"
+        className="text-sm whitespace-pre-wrap"
         style={{
-          background: isError ? '#1c0808' : '#0d1929',
-          color: isError ? '#f87171' : '#cbd5e1',
-          border: `1px solid ${isError ? '#7f1d1d' : '#1e2d40'}`,
+          color: isError ? '#dc2626' : '#1a1a1a',
           maxWidth: '90%',
+          lineHeight: 1.6,
         }}
       >
         {content}
@@ -90,10 +85,7 @@ function AssistantBubble({ content, isError }) {
   )
 }
 
-export default function Chat({ onResults }) {
-  const [messages, setMessages] = useState([
-    { type: 'assistant', content: WELCOME },
-  ])
+export default function Chat({ onResults, hasStarted, onStart, messages, setMessages }) {
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
   const bottomRef = useRef(null)
@@ -108,6 +100,9 @@ export default function Chat({ onResults }) {
       e.preventDefault()
       const prompt = input.trim()
       if (!prompt || loading) return
+
+      // Trigger transition on first submit
+      if (!hasStarted && onStart) onStart()
 
       setInput('')
       setLoading(true)
@@ -173,7 +168,7 @@ export default function Chat({ onResults }) {
         inputRef.current?.focus()
       }
     },
-    [input, loading, onResults]
+    [input, loading, onResults, hasStarted, onStart]
   )
 
   const handleKeyDown = (e) => {
@@ -182,6 +177,78 @@ export default function Chat({ onResults }) {
     }
   }
 
+  /* ── Landing mode: centered input with title ── */
+  if (!hasStarted) {
+    return (
+      <div style={{ width: '100%', maxWidth: 696 }}>
+        <h1
+          style={{
+            fontSize: 60,
+            fontWeight: 900,
+            color: '#000000',
+            letterSpacing: '0.04em',
+            marginBottom: 8,
+            textAlign: 'center',
+          }}
+        >
+          CassetteAI
+        </h1>
+        <div style={{ marginBottom: 32 }} />
+
+        <form onSubmit={handleSubmit}>
+          <div
+            style={{
+              display: 'flex',
+              gap: 8,
+              padding: '10px 10px 10px 24px',
+              alignItems: 'center',
+              background: '#f0f0f0',
+              borderRadius: 9999,
+              border: 'none',
+            }}
+          >
+            <input
+              ref={inputRef}
+              type="text"
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={handleKeyDown}
+              disabled={loading}
+              placeholder="Design a liver-specific enhancer for AAV delivery…"
+              style={{
+                flex: 1,
+                background: 'transparent',
+                border: 'none',
+                outline: 'none',
+                fontSize: 18,
+                color: '#1a1a1a',
+                padding: '10px 0',
+              }}
+            />
+            <button
+              type="submit"
+              disabled={loading || !input.trim()}
+              style={{
+                background: loading || !input.trim() ? '#d4d4d4' : '#333333',
+                color: loading || !input.trim() ? '#9ca3af' : '#ffffff',
+                border: 'none',
+                borderRadius: 9999,
+                padding: '12px 24px',
+                fontSize: 17,
+                fontWeight: 600,
+                cursor: loading || !input.trim() ? 'not-allowed' : 'pointer',
+                transition: 'all 200ms ease',
+              }}
+            >
+              {loading ? '…' : 'Send'}
+            </button>
+          </div>
+        </form>
+      </div>
+    )
+  }
+
+  /* ── Active mode: full chat panel ── */
   return (
     <div className="flex flex-col h-full">
       {/* Messages */}
@@ -211,10 +278,19 @@ export default function Chat({ onResults }) {
       {/* Input */}
       <form
         onSubmit={handleSubmit}
-        className="p-4 border-t"
-        style={{ borderColor: '#1e2d40' }}
+        style={{ padding: 16 }}
       >
-        <div className="flex gap-2">
+        <div
+          style={{
+            display: 'flex',
+            gap: 8,
+            padding: '6px 6px 6px 20px',
+            alignItems: 'center',
+            background: '#f0f0f0',
+            borderRadius: 9999,
+            border: 'none',
+          }}
+        >
           <input
             ref={inputRef}
             type="text"
@@ -222,23 +298,30 @@ export default function Chat({ onResults }) {
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
             disabled={loading}
-            placeholder="e.g. Design a liver-specific enhancer for AAV delivery…"
-            className="flex-1 rounded-lg px-4 py-2 text-sm outline-none"
+            placeholder="Ask a follow-up or start a new design…"
             style={{
-              background: '#0d1929',
-              border: '1px solid #1e2d40',
-              color: '#e2e8f0',
+              flex: 1,
+              background: 'transparent',
+              border: 'none',
+              outline: 'none',
+              fontSize: 14,
+              color: '#1a1a1a',
+              padding: '8px 0',
             }}
           />
           <button
             type="submit"
             disabled={loading || !input.trim()}
-            className="rounded-lg px-4 py-2 text-sm font-semibold transition-all"
             style={{
-              background: loading || !input.trim() ? '#164e63' : '#0e7490',
-              color: '#e0f7ff',
-              opacity: loading || !input.trim() ? 0.55 : 1,
+              background: loading || !input.trim() ? '#d4d4d4' : '#333333',
+              color: loading || !input.trim() ? '#9ca3af' : '#ffffff',
+              border: 'none',
+              borderRadius: 9999,
+              padding: '8px 18px',
+              fontSize: 14,
+              fontWeight: 600,
               cursor: loading || !input.trim() ? 'not-allowed' : 'pointer',
+              transition: 'all 200ms ease',
             }}
           >
             {loading ? '…' : 'Send'}
