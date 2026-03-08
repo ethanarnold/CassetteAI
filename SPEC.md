@@ -386,11 +386,11 @@ a gene therapy scientist would understand.
 ### 3A. FastAPI Server (`backend/server.py`)
 
 **Build checklist:**
-- [ ] POST `/api/chat` — accepts user prompt, returns streaming pipeline results
-- [ ] GET `/api/health` — health check
-- [ ] Wire orchestrator into API route
-- [ ] CORS config for frontend dev server
-- [ ] SSE or WebSocket for streaming status updates to frontend
+- [x] POST `/api/chat` — accepts user prompt, returns streaming pipeline results
+- [x] GET `/api/health` — health check
+- [x] Wire orchestrator into API route
+- [x] CORS config for frontend dev server
+- [x] SSE or WebSocket for streaming status updates to frontend
 
 ---
 
