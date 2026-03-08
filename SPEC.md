@@ -364,21 +364,20 @@ a gene therapy scientist would understand.
 ### 2C. Orchestrator (`backend/orchestrator.py`)
 
 **Build checklist:**
-- [ ] Parse user intent → extract tissue, length, constraints
-- [ ] Map tissue → DNA-Diffusion cell type + Sei target classes
-- [ ] Implement pipeline: check cache → generate → score → interpret → compose cassette
-- [ ] Wire up Claude API calls (Anthropic Messages API, claude-sonnet-4-20250514 for orchestration)
-- [ ] Tool definitions for `generate_elements` and `score_elements`
-- [ ] Streaming support for frontend status updates
+- [x] Parse user intent → extract tissue, length, constraints
+- [x] Map tissue → DNA-Diffusion cell type + Sei target classes
+- [x] Implement pipeline: check cache → generate → score → interpret → compose cassette
+- [x] Wire up Claude API calls (Anthropic Messages API, claude-sonnet-4-20250514 for orchestration)
+- [x] Streaming support for frontend status updates (SSE-compatible yield events)
 
 ### 2D. Interpretation Logic (`backend/interpret.py`)
 
 **Build checklist:**
-- [ ] Send Sei scores to Claude with interpretation prompt (use claude-opus-4-6 for deeper biological reasoning)
-- [ ] Parse Claude response into structured ranking
-- [ ] Sequence pathology checks (can be code, not Claude): GC content, homopolymers, AATAAA/ATTAAA
-- [ ] Cassette composition: top element + minTBG + transgene placeholder + polyA + ITRs
-- [ ] Calculate total cassette length vs 4.7kb AAV limit
+- [x] Send Sei scores to Claude with interpretation prompt (use claude-opus-4-6 for deeper biological reasoning)
+- [x] Parse Claude response into structured ranking
+- [x] Sequence pathology checks (can be code, not Claude): GC content, homopolymers, AATAAA/ATTAAA
+- [x] Cassette composition: top element + minTBG + transgene placeholder + polyA + ITRs
+- [x] Calculate total cassette length vs 4.7kb AAV limit
 
 ---
 

@@ -1,0 +1,293 @@
+"""CassetteAI pipeline orchestrator.
+
+Parses user intent via Claude Sonnet, checks the cache, calls Modal GPU
+functions (DNA-Diffusion → Sei), interprets results via Claude Opus, and
+yields SSE-compatible status events as an async generator.
+"""
+
+import asyncio
+import json
+import os
+import re
+from collections.abc import AsyncGenerator
+from typing import Any
+
+from backend.cache import get_cached, set_cache
+from backend.interpret import compose_cassette, interpret_scores
+
+# ---------------------------------------------------------------------------
+# Lazy Anthropic client (avoids import-time API key requirement)
+# ---------------------------------------------------------------------------
+
+_anthropic_client = None
+
+
+def get_anthropic_client():
+    """Return a shared AsyncAnthropic instance, creating it on first call."""
+    global _anthropic_client
+    if _anthropic_client is None:
+        import anthropic
+
+        _anthropic_client = anthropic.AsyncAnthropic(
+            api_key=os.environ["ANTHROPIC_API_KEY"]
+        )
+    return _anthropic_client
+
+
+# ---------------------------------------------------------------------------
+# Tissue mapping
+# ---------------------------------------------------------------------------
+
+# Canonical tissue → DNA-Diffusion cell type string
+_TISSUE_TO_CELL_TYPE: dict[str, str] = {
+    "liver": "HepG2",
+    "cardiac": "K562",
+    "neural": "GM12878",
+    "blood": "K562",
+}
+
+# Synonym → canonical tissue key (mirrors cache.py _TISSUE_MAP)
+_TISSUE_SYNONYMS: dict[str, str] = {
+    "liver": "liver",
+    "hepatocyte": "liver",
+    "hepatic": "liver",
+    "heart": "cardiac",
+    "cardiac": "cardiac",
+    "cardiomyocyte": "cardiac",
+    "brain": "neural",
+    "neuron": "neural",
+    "neural": "neural",
+    "cns": "neural",
+    "blood": "blood",
+    "hematopoietic": "blood",
+}
+
+
+def _normalize_tissue(raw: str) -> str:
+    return _TISSUE_SYNONYMS.get(raw.lower().strip(), raw.lower().strip())
+
+
+# ---------------------------------------------------------------------------
+# Intent parsing
+# ---------------------------------------------------------------------------
+
+
+async def _parse_intent(user_prompt: str) -> dict[str, Any]:
+    """Use Claude Sonnet to extract structured design parameters from free text.
+
+    Returns a dict with keys:
+        target_tissue (str), length_bp (int), constraints (list[str])
+    Falls back to {'target_tissue': 'liver', 'length_bp': 200, 'constraints': []}
+    if parsing fails.
+    """
+    client = get_anthropic_client()
+    response = await client.messages.create(
+        model="claude-sonnet-4-20250514",
+        max_tokens=512,
+        system=(
+            "You are a gene therapy design assistant. "
+            "Extract structured design parameters from the user's request. "
+            "Return ONLY a raw JSON object with exactly these keys:\n"
+            '  "target_tissue": string (e.g. "liver", "cardiac", "neural", "blood"),\n'
+            '  "length_bp": integer (element length in bp, default 200),\n'
+            '  "constraints": array of strings (special requirements, empty if none).\n'
+            "Return ONLY the JSON, no other text or markdown fences."
+        ),
+        messages=[{"role": "user", "content": user_prompt}],
+    )
+    raw = response.content[0].text.strip()
+    try:
+        return json.loads(raw)
+    except json.JSONDecodeError:
+        m = re.search(r"\{.*\}", raw, re.DOTALL)
+        if m:
+            try:
+                return json.loads(m.group(0))
+            except json.JSONDecodeError:
+                pass
+    return {"target_tissue": "liver", "length_bp": 200, "constraints": []}
+
+
+# ---------------------------------------------------------------------------
+# Pipeline
+# ---------------------------------------------------------------------------
+
+
+async def run_pipeline(
+    user_prompt: str,
+) -> AsyncGenerator[dict[str, Any], None]:
+    """Run the full CassetteAI pipeline and yield SSE-compatible event dicts.
+
+    Yield shapes:
+        {"type": "status", "stage": str, "message": str, ...extra}
+        {"type": "results", "data": {"generation": ..., "scoring": ...,
+                                      "interpretation": ..., "cassette": ...}}
+        {"type": "error",  "message": str}
+
+    On error the generator yields the error event then stops — callers should
+    treat any "error" event as terminal.
+    """
+    # ── Step 1: Parse intent ──────────────────────────────────────────────
+    yield {
+        "type": "status",
+        "stage": "parsing",
+        "message": "Understanding your design request...",
+    }
+
+    intent = await _parse_intent(user_prompt)
+    raw_tissue = intent.get("target_tissue", "liver")
+    tissue = _normalize_tissue(raw_tissue)
+    length_bp: int = int(intent.get("length_bp", 200))
+    constraints: list[str] = intent.get("constraints", [])
+
+    # ── Step 2: Map tissue ────────────────────────────────────────────────
+    cell_type = _TISSUE_TO_CELL_TYPE.get(tissue)
+    if cell_type is None:
+        yield {
+            "type": "error",
+            "message": (
+                f"Unsupported tissue '{tissue}'. "
+                "Supported tissues: liver, cardiac, neural, blood. "
+                "Please rephrase your request using one of these."
+            ),
+        }
+        return
+
+    yield {
+        "type": "status",
+        "stage": "parsed",
+        "message": (
+            f"Designing {length_bp} bp {tissue}-specific enhancer "
+            f"using {cell_type} conditioning."
+        ),
+        "intent": {
+            "tissue": tissue,
+            "cell_type": cell_type,
+            "length_bp": length_bp,
+            "constraints": constraints,
+        },
+    }
+
+    # ── Step 3: Cache check ───────────────────────────────────────────────
+    cached_gen: dict | None = get_cached(user_prompt, "generation")
+    cached_score: list | None = get_cached(user_prompt, "scoring")
+    cached_interp: dict | None = get_cached(user_prompt, "interpretation")
+    cached_cassette: dict | None = get_cached(user_prompt, "cassette")
+
+    if cached_gen and cached_score and cached_interp and cached_cassette:
+        yield {
+            "type": "status",
+            "stage": "cache_hit",
+            "message": "Serving pre-computed results from cache...",
+        }
+        yield {
+            "type": "results",
+            "data": {
+                "generation": cached_gen,
+                "scoring": cached_score,
+                "interpretation": cached_interp,
+                "cassette": cached_cassette,
+            },
+        }
+        return
+
+    # ── Step 4: Generation ────────────────────────────────────────────────
+    yield {
+        "type": "status",
+        "stage": "generating",
+        "message": f"Generating 200 candidate elements for {cell_type}...",
+    }
+
+    sequences: list[str]
+    if cached_gen:
+        sequences = cached_gen["sequences"]
+    else:
+        try:
+            import modal  # type: ignore[import]
+
+            generate_fn = modal.Function.from_name("dna-diffusion", "generate_elements")
+            sequences = await asyncio.to_thread(generate_fn.remote, cell_type, 200)
+        except Exception as exc:
+            yield {
+                "type": "error",
+                "message": (
+                    f"DNA-Diffusion generation failed: {exc}. "
+                    "Ensure the Modal function is deployed: "
+                    "`modal deploy backend/modal_generate.py`"
+                ),
+            }
+            return
+
+        generation_data: dict[str, Any] = {
+            "sequences": sequences,
+            "cell_type": cell_type,
+            "n_sequences": len(sequences),
+        }
+        set_cache(user_prompt, "generation", generation_data)
+        cached_gen = generation_data
+
+    # ── Step 5: Scoring ───────────────────────────────────────────────────
+    yield {
+        "type": "status",
+        "stage": "scoring",
+        "message": "Scoring tissue specificity across 40 tissue classes...",
+    }
+
+    scored: list[dict]
+    if cached_score:
+        scored = cached_score
+    else:
+        try:
+            import modal  # type: ignore[import]
+
+            score_fn = modal.Function.from_name("sei-scorer", "score_elements")
+            scored = await asyncio.to_thread(score_fn.remote, sequences)
+        except Exception as exc:
+            yield {
+                "type": "error",
+                "message": (
+                    f"Sei scoring failed: {exc}. "
+                    "Ensure the Modal function is deployed: "
+                    "`modal deploy backend/modal_score.py`"
+                ),
+            }
+            return
+
+        set_cache(user_prompt, "scoring", scored)
+        cached_score = scored
+
+    # ── Step 6: Interpretation ────────────────────────────────────────────
+    yield {
+        "type": "status",
+        "stage": "interpreting",
+        "message": "Analyzing results...",
+    }
+
+    interpretation: dict[str, Any]
+    if cached_interp:
+        interpretation = cached_interp
+    else:
+        interpretation = await interpret_scores(scored, tissue)
+        set_cache(user_prompt, "interpretation", interpretation)
+        cached_interp = interpretation
+
+    # ── Step 7: Cassette ──────────────────────────────────────────────────
+    cassette: dict[str, Any]
+    if cached_cassette:
+        cassette = cached_cassette
+    else:
+        ranking = interpretation.get("ranking", [])
+        top_seq = ranking[0].get("sequence", "") if ranking else ""
+        cassette = compose_cassette(top_seq) if top_seq else {}
+        set_cache(user_prompt, "cassette", cassette)
+        cached_cassette = cassette
+
+    yield {
+        "type": "results",
+        "data": {
+            "generation": cached_gen,
+            "scoring": cached_score,
+            "interpretation": cached_interp,
+            "cassette": cached_cassette,
+        },
+    }
