@@ -5,8 +5,19 @@ Run with: uvicorn backend.server:app --reload --port 8000
 """
 
 import json
+import os
 from pathlib import Path
 from typing import AsyncGenerator
+
+# Fail fast at import time if the key is missing — much clearer than a
+# mid-stream KeyError buried inside an SSE response.
+if "ANTHROPIC_API_KEY" not in os.environ:
+    raise RuntimeError(
+        "ANTHROPIC_API_KEY is not set. "
+        "Export it in the SAME shell that runs uvicorn:\n"
+        "  export ANTHROPIC_API_KEY='sk-...'\n"
+        "  uvicorn backend.server:app --reload --port 8000"
+    )
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
