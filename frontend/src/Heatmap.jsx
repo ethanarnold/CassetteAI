@@ -76,7 +76,7 @@ const TISSUE_HIGHLIGHT_KEYS = {
   blood:   ['E7 Monocyte / Macrophage', 'E11 T-cell', 'E5 B-cell-like', 'E12 Erythroblast-like', 'TF2 CEBPB'],
 }
 
-const HIGHLIGHT_BORDER = '#0891b2'
+const HIGHLIGHT_BORDER = '#000000'
 
 function CustomTooltip({ active, payload }) {
   if (!active || !payload?.length) return null
@@ -195,17 +195,25 @@ export default function Heatmap({ tissue, scoringData, interpretationData }) {
               width={40}
             />
             <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(0,0,0,0.03)' }} />
-            <Bar dataKey="score" radius={[2, 2, 0, 0]} maxBarSize={20}>
-              {barData.map((entry, i) => (
-                <Cell
-                  key={i}
-                  fill={CATEGORY_COLORS[entry.category]}
-                  opacity={entry.isTarget ? 1 : 0.6}
-                  stroke={entry.isTarget ? HIGHLIGHT_BORDER : 'none'}
-                  strokeWidth={entry.isTarget ? 2 : 0}
-                />
-              ))}
-            </Bar>
+            <Bar dataKey="score" radius={[2, 2, 0, 0]} maxBarSize={20} shape={(props) => {
+              const { x, y, width, height, index } = props
+              const entry = barData[index]
+              const fill = CATEGORY_COLORS[entry.category]
+              const op = entry.isTarget ? 1 : 0.6
+              return (
+                <g>
+                  <rect x={x} y={y} width={width} height={height} fill={fill} opacity={op} rx={2} ry={2} />
+                  {entry.isTarget && (
+                    <path
+                      d={`M${x},${y + height} L${x},${y + 2} Q${x},${y} ${x + 2},${y} L${x + width - 2},${y} Q${x + width},${y} ${x + width},${y + 2} L${x + width},${y + height}`}
+                      fill="none"
+                      stroke={HIGHLIGHT_BORDER}
+                      strokeWidth={2}
+                    />
+                  )}
+                </g>
+              )
+            }} />
           </BarChart>
         </ResponsiveContainer>
       </div>
