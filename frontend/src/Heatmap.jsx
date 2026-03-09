@@ -161,11 +161,11 @@ export default function Heatmap({ tissue, scoringData, interpretationData }) {
   return (
     <div className="p-4 h-full flex flex-col fade-in">
       <div className="flex items-baseline gap-3 mb-3">
-        <h2 className="text-sm font-semibold" style={{ color: '#6b7280' }}>
+        <h2 className="font-semibold" style={{ color: '#6b7280', fontSize: 18 }}>
           Tissue Specificity — Top Candidate
         </h2>
         {specRatio != null && (
-          <span className="text-xs" style={{ color: '#9ca3af' }}>
+          <span style={{ color: '#9ca3af', fontSize: 16 }}>
             <span style={{ color: '#0891b2' }}>★</span> specificity{' '}
             <span style={{ color: '#6b7280' }}>{specRatio.toFixed(2)}x</span>
           </span>
@@ -176,7 +176,7 @@ export default function Heatmap({ tissue, scoringData, interpretationData }) {
         <ResponsiveContainer width="100%" height="100%">
           <BarChart
             data={barData}
-            margin={{ top: 8, right: 8, bottom: 60, left: 0 }}
+            margin={{ top: 8, right: 8, bottom: 10, left: 0 }}
           >
             <XAxis
               dataKey="name"

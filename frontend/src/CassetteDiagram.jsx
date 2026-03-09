@@ -1,3 +1,5 @@
+import { useState } from 'react'
+
 /** Pure SVG rendering of the AAV cassette design.
  *
  * Layout (proportional to bp / aav_limit_bp so unused capacity is visible):
@@ -21,8 +23,8 @@ const ELEMENT_LABELS = {
   "5'ITR":    "5' ITR",
   "3'ITR":    "3' ITR",
   enhancer:   'Enhancer',
-  minTBG:     'minTBG',
-  minCMV:     'minCMV',
+  minTBG:     'Promoter',
+  minCMV:     'Promoter',
   transgene:  'Transgene',
   bGH_polyA:  'bGH polyA',
 }
@@ -58,6 +60,48 @@ const SVG_H      = BAR_TEXT_Y + 10         // 166
 const DRAW_X = 16
 const DRAW_W = SVG_W - 32
 
+function EnhancerSequenceBox({ sequence }) {
+  const [copied, setCopied] = useState(false)
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(sequence).then(() => {
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    })
+  }
+
+  return (
+    <div
+      className="glass rounded-lg p-3 text-xs font-mono"
+      style={{ color: '#0891b2', borderRadius: 12, position: 'relative' }}
+    >
+      <div className="flex items-center justify-between mb-1">
+        <span style={{ color: '#9ca3af', fontFamily: 'inherit' }}>
+          Enhancer ({sequence.length} bp)
+        </span>
+        <button
+          onClick={handleCopy}
+          style={{
+            background: copied ? '#d1fae5' : '#f3f4f6',
+            border: '1px solid #e5e7eb',
+            borderRadius: 6,
+            padding: '2px 10px',
+            fontSize: 11,
+            color: copied ? '#059669' : '#6b7280',
+            cursor: 'pointer',
+            transition: 'all 150ms ease',
+          }}
+        >
+          {copied ? 'Copied!' : 'Copy'}
+        </button>
+      </div>
+      <div style={{ wordBreak: 'break-all', lineHeight: 1.5 }}>
+        {sequence}
+      </div>
+    </div>
+  )
+}
+
 export default function CassetteDiagram({ data }) {
   /* No data → render nothing (blank cream space) */
   if (!data) return null
@@ -76,7 +120,7 @@ export default function CassetteDiagram({ data }) {
   let xCur = DRAW_X
   const rects = elements.map((name, i) => {
     const bp = lengths_bp[i] ?? 0
-    const w = Math.max(2, (bp / aav_limit_bp) * DRAW_W)
+    const w = Math.max(2, (bp / total_bp) * DRAW_W)
     const r = { name, bp, x: xCur, w, cx: xCur + w / 2 }
     xCur += w
     return r
@@ -85,23 +129,21 @@ export default function CassetteDiagram({ data }) {
   const progressW = Math.min(1, total_bp / aav_limit_bp) * DRAW_W
   const isOverLimit = headroom_bp < 0
 
-  // Detect narrow rects (< 48px) — omit inline text for those
-  const WIDE_THRESHOLD = 48
 
   return (
     <div className="p-4 h-full overflow-auto flex flex-col gap-3 fade-in">
-      <div className="flex items-baseline gap-3">
-        <h2 className="text-sm font-semibold" style={{ color: '#6b7280' }}>
+      <div className="flex items-baseline gap-3" style={{ marginTop: -20 }}>
+        <h2 className="font-semibold" style={{ color: '#6b7280', fontSize: 18 }}>
           AAV Cassette Design
         </h2>
-        <span className="text-xs" style={{ color: '#9ca3af' }}>
+        <span style={{ color: '#9ca3af', fontSize: 16 }}>
           5'ITR — Enhancer — Promoter — Transgene — polyA — 3'ITR
         </span>
       </div>
 
       <svg
         viewBox={`0 0 ${SVG_W} ${SVG_H}`}
-        style={{ width: '100%', overflow: 'visible' }}
+        style={{ width: '100%', overflow: 'visible', marginTop: -30 }}
         aria-label="AAV cassette diagram"
       >
         <defs>
@@ -117,51 +159,24 @@ export default function CassetteDiagram({ data }) {
 
         {rects.map((r, i) => {
           const isEnhancer = r.name === 'enhancer'
-          const isWide = r.w >= WIDE_THRESHOLD
           const color = getColor(r.name)
           const label = getLabel(r.name)
 
           return (
             <g key={i}>
-              {/* Element name — inside wide rects, above narrow ones */}
-              {isWide ? (
-                <text
-                  x={r.cx}
-                  y={RECT_Y + RECT_H / 2}
-                  textAnchor="middle"
-                  dominantBaseline="middle"
-                  fontSize="11"
-                  fontWeight={isEnhancer ? 'bold' : 'normal'}
-                  fill={isEnhancer ? '#fff' : 'rgba(255,255,255,0.9)'}
-                  style={{ userSelect: 'none' }}
-                >
-                  {label}
-                </text>
-              ) : (
-                <>
-                  {/* Tick line from label to rect */}
-                  <line
-                    x1={r.cx}
-                    y1={LABEL_Y + 7}
-                    x2={r.cx}
-                    y2={RECT_Y - 1}
-                    stroke="#d4d4d4"
-                    strokeWidth="0.8"
-                  />
-                  <text
-                    x={r.cx}
-                    y={LABEL_Y}
-                    textAnchor="middle"
-                    dominantBaseline="middle"
-                    fontSize="9"
-                    fill={isEnhancer ? '#0891b2' : '#6b7280'}
-                    fontWeight={isEnhancer ? 'bold' : 'normal'}
-                    style={{ userSelect: 'none' }}
-                  >
-                    {label}
-                  </text>
-                </>
-              )}
+              {/* Element name — centered above */}
+              <text
+                x={r.cx}
+                y={LABEL_Y}
+                textAnchor="middle"
+                dominantBaseline="middle"
+                fontSize="13"
+                fill={isEnhancer ? '#0891b2' : '#374151'}
+                fontWeight={isEnhancer ? 'bold' : 500}
+                style={{ userSelect: 'none' }}
+              >
+                {label}
+              </text>
 
               {/* Coloured rectangle */}
               <rect
@@ -200,19 +215,6 @@ export default function CassetteDiagram({ data }) {
             </g>
           )
         })}
-
-        {/* AAV limit bracket — dashed outline of remaining capacity */}
-        <rect
-          x={DRAW_X}
-          y={RECT_Y}
-          width={DRAW_W}
-          height={RECT_H}
-          fill="none"
-          stroke="#d4d4d4"
-          strokeWidth="1"
-          strokeDasharray="4 3"
-          rx="3"
-        />
 
         {/* Progress bar track */}
         <rect x={DRAW_X} y={BAR_Y} width={DRAW_W} height={BAR_H} fill="#e5e7eb" rx="6" />
@@ -267,20 +269,9 @@ export default function CassetteDiagram({ data }) {
         ))}
       </div>
 
-      {/* Enhancer sequence preview — glass card */}
+      {/* Enhancer sequence — full with copy button */}
       {enhancer_sequence && (
-        <div
-          className="glass rounded-lg p-2 text-xs font-mono"
-          style={{ color: '#0891b2', borderRadius: 12 }}
-        >
-          <span style={{ color: '#9ca3af' }}>Enhancer: </span>
-          {enhancer_sequence.slice(0, 30)}
-          <span style={{ color: '#9ca3af' }}>…</span>
-          {enhancer_sequence.slice(-10)}
-          <span className="ml-2" style={{ color: '#9ca3af' }}>
-            ({enhancer_sequence.length} bp)
-          </span>
-        </div>
+        <EnhancerSequenceBox sequence={enhancer_sequence} />
       )}
     </div>
   )

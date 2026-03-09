@@ -76,6 +76,48 @@ def _normalize_tissue(raw: str) -> str:
 
 
 # ---------------------------------------------------------------------------
+# Thought narration (template-based, zero API calls)
+# ---------------------------------------------------------------------------
+
+
+def _make_thought(
+    stage: str,
+    *,
+    tissue: str,
+    cell_type: str,
+    length_bp: int,
+    n_sequences: int = 300,
+    constraints: list[str] | None = None,
+    scored_count: int = 0,
+) -> dict[str, Any]:
+    """Return a thought event dict for a given pipeline transition."""
+    templates = {
+        "plan": (
+            f"I'll design {length_bp} bp {tissue}-specific enhancers by generating "
+            f"{n_sequences:,} candidates with DNA-Diffusion (conditioned on {cell_type}), "
+            f"then scoring each one with Sei across 40 regulatory tissue classes to find "
+            f"the most tissue-specific element."
+            + (f" Constraints noted: {', '.join(constraints)}." if constraints else "")
+        ),
+        "post_generation": (
+            f"DNA-Diffusion successfully generated {n_sequences:,} candidate "
+            f"regulatory elements. I'm now sending them to the Sei deep learning "
+            f"model to score tissue specificity across 40 chromatin profiles."
+        ),
+        "post_scoring": (
+            f"Sei scoring is complete — all {scored_count:,} candidates have been "
+            f"evaluated across 40 tissue classes. I'm now finalizing the analysis "
+            f"to identify the top {tissue}-specific element and generate the figures."
+        ),
+        "cache_hit": (
+            f"I've already analyzed {tissue}-specific enhancers for this exact request. "
+            f"Serving the pre-computed results."
+        ),
+    }
+    return {"type": "thought", "stage": stage, "message": templates[stage]}
+
+
+# ---------------------------------------------------------------------------
 # Intent parsing
 # ---------------------------------------------------------------------------
 
@@ -116,6 +158,41 @@ async def _parse_intent(user_prompt: str) -> dict[str, Any]:
     return {"target_tissue": "liver", "length_bp": 200, "constraints": []}
 
 
+async def _paraphrase_request(
+    user_prompt: str,
+    tissue: str,
+    length_bp: int,
+    constraints: list[str],
+) -> str:
+    """Use Claude Sonnet to paraphrase the user's request into a brief
+    explanation of what we understood and what we'll do."""
+    client = get_anthropic_client()
+    constraint_note = f" Constraints: {', '.join(constraints)}." if constraints else ""
+    response = await client.messages.create(
+        model="claude-sonnet-4-20250514",
+        max_tokens=200,
+        system=(
+            "You are a gene therapy design assistant. The user asked you to "
+            "design a synthetic regulatory element. Paraphrase their request "
+            "in 1-2 sentences, confirming the target tissue, element length, "
+            "and any special constraints. Be concise and conversational. "
+            "Do not use emojis. Do not use markdown formatting. "
+            "Speak in the first person (e.g. 'I understand you want...')."
+        ),
+        messages=[
+            {
+                "role": "user",
+                "content": (
+                    f"Original request: {user_prompt}\n\n"
+                    f"Parsed parameters: tissue={tissue}, "
+                    f"length={length_bp} bp.{constraint_note}"
+                ),
+            }
+        ],
+    )
+    return response.content[0].text.strip()
+
+
 # ---------------------------------------------------------------------------
 # Pipeline
 # ---------------------------------------------------------------------------
@@ -127,10 +204,11 @@ async def run_pipeline(
     """Run the full CassetteAI pipeline and yield SSE-compatible event dicts.
 
     Yield shapes:
-        {"type": "status", "stage": str, "message": str, ...extra}
+        {"type": "status",  "stage": str, "message": str, ...extra}
+        {"type": "thought", "stage": str, "message": str}
         {"type": "results", "data": {"generation": ..., "scoring": ...,
                                       "interpretation": ..., "cassette": ...}}
-        {"type": "error",  "message": str}
+        {"type": "error",   "message": str}
 
     On error the generator yields the error event then stops — callers should
     treat any "error" event as terminal.
@@ -147,6 +225,10 @@ async def run_pipeline(
     tissue = _normalize_tissue(raw_tissue)
     length_bp: int = int(intent.get("length_bp", 200))
     constraints: list[str] = intent.get("constraints", [])
+
+    # Paraphrase the user's request as a thought
+    paraphrase = await _paraphrase_request(user_prompt, tissue, length_bp, constraints)
+    yield {"type": "thought", "stage": "parsing", "message": paraphrase}
 
     # ── Step 2: Map tissue ────────────────────────────────────────────────
     cell_type = _TISSUE_TO_CELL_TYPE.get(tissue)
@@ -176,6 +258,11 @@ async def run_pipeline(
         },
     }
 
+    yield _make_thought(
+        "plan", tissue=tissue, cell_type=cell_type,
+        length_bp=length_bp, constraints=constraints,
+    )
+
     # ── Step 3: Cache check ───────────────────────────────────────────────
     cached_gen: dict | None = get_cached(user_prompt, "generation")
     cached_score: list | None = get_cached(user_prompt, "scoring")
@@ -183,6 +270,9 @@ async def run_pipeline(
     cached_cassette: dict | None = get_cached(user_prompt, "cassette")
 
     if cached_gen and cached_score and cached_interp and cached_cassette:
+        yield _make_thought(
+            "cache_hit", tissue=tissue, cell_type=cell_type, length_bp=length_bp,
+        )
         yield {
             "type": "status",
             "stage": "cache_hit",
@@ -204,7 +294,7 @@ async def run_pipeline(
     yield {
         "type": "status",
         "stage": "generating",
-        "message": f"Generating 3000 candidate elements for {cell_type}...",
+        "message": f"Generating 300 candidate elements for {cell_type}...",
     }
 
     sequences: list[str]
@@ -216,8 +306,8 @@ async def run_pipeline(
 
             generate_fn = modal.Function.from_name("dna-diffusion", "generate_elements")
             logger.debug("── DNA-Diffusion INPUT ──")
-            logger.debug("  cell_type=%s  n_samples=3000", cell_type)
-            sequences = await asyncio.to_thread(generate_fn.remote, cell_type, 3000)
+            logger.debug("  cell_type=%s  n_samples=300", cell_type)
+            sequences = await asyncio.to_thread(generate_fn.remote, cell_type, 300)
         except Exception as exc:
             yield {
                 "type": "error",
@@ -241,6 +331,11 @@ async def run_pipeline(
         }
         set_cache(user_prompt, "generation", generation_data)
         cached_gen = generation_data
+
+    yield _make_thought(
+        "post_generation", tissue=tissue, cell_type=cell_type,
+        length_bp=length_bp, n_sequences=len(sequences),
+    )
 
     # ── Step 5: Scoring ───────────────────────────────────────────────────
     yield {
@@ -287,6 +382,11 @@ async def run_pipeline(
 
         set_cache(user_prompt, "scoring", scored)
         cached_score = scored
+
+    yield _make_thought(
+        "post_scoring", tissue=tissue, cell_type=cell_type,
+        length_bp=length_bp, scored_count=len(scored),
+    )
 
     # ── Step 6: Interpretation ────────────────────────────────────────────
     yield {

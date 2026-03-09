@@ -1,51 +1,34 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { sendChatMessage } from './api.js'
 
-const STAGE_ICONS = {
-  parsing: '⏳',
-  parsed: '🎯',
-  cache_hit: '⚡',
-  generating: '🧬',
-  scoring: '📊',
-  interpreting: '🔬',
+function StatusLine({ message, isActive }) {
+  return (
+    <div className="flex justify-start">
+      <div
+        className="flex items-center text-xs rounded-lg px-3 py-1.5"
+        style={{ color: '#6b7280', background: '#f3f4f6' }}
+      >
+        <span>{message}</span>
+        {isActive && <span className="inline-spinner" />}
+      </div>
+    </div>
+  )
 }
 
-function PipelineStatus({ stages, done, error }) {
+function ThoughtBubble({ message, isActive }) {
   return (
-    <div
-      className="glass rounded-xl p-3 space-y-1.5"
-      style={{ fontSize: 15 }}
-    >
-      {stages.map((s, i) => (
-        <div key={i} className="flex items-start gap-2">
-          <span className="shrink-0">{STAGE_ICONS[s.stage] || '•'}</span>
-          <span style={{ color: '#6b7280' }}>{s.message}</span>
-        </div>
-      ))}
-
-      {!done && stages.length > 0 && (
-        <div className="flex items-center gap-2 text-xs" style={{ color: '#9ca3af' }}>
-          <span className="loading-dots" aria-label="Processing">
-            <span /><span /><span />
-          </span>
-          <span>Processing…</span>
-        </div>
-      )}
-
-      {done && !error && stages.length > 0 && (
-        <div className="text-xs" style={{ color: '#16a34a' }}>
-          ✓ Pipeline complete
-        </div>
-      )}
-
-      {error && (
-        <div
-          className="rounded-lg p-2 mt-1 text-xs"
-          style={{ background: '#fef2f2', color: '#dc2626', border: '1px solid #fecaca' }}
-        >
-          ⚠️ {error}
-        </div>
-      )}
+    <div className="flex justify-start">
+      <div
+        className="text-sm whitespace-pre-wrap flex items-start"
+        style={{
+          color: '#374151',
+          maxWidth: '90%',
+          lineHeight: 1.6,
+        }}
+      >
+        <span>{message}</span>
+        {isActive && <span className="inline-spinner" style={{ marginTop: 5 }} />}
+      </div>
     </div>
   )
 }
@@ -107,30 +90,20 @@ export default function Chat({ onResults, hasStarted, onStart, messages, setMess
       setInput('')
       setLoading(true)
 
-      const pipelineId = `pipeline-${Date.now()}`
-
-      setMessages((prev) => [
-        ...prev,
-        { type: 'user', content: prompt },
-        { type: 'pipeline', id: pipelineId, stages: [], done: false, error: null },
-      ])
+      setMessages((prev) => [...prev, { type: 'user', content: prompt }])
 
       try {
         for await (const event of sendChatMessage(prompt)) {
           if (event.type === 'status') {
-            setMessages((prev) =>
-              prev.map((m) =>
-                m.id === pipelineId
-                  ? {
-                      ...m,
-                      stages: [
-                        ...m.stages.filter((s) => s.stage !== event.stage),
-                        { stage: event.stage, message: event.message },
-                      ],
-                    }
-                  : m
-              )
-            )
+            setMessages((prev) => [
+              ...prev,
+              { type: 'status', stage: event.stage, message: event.message },
+            ])
+          } else if (event.type === 'thought') {
+            setMessages((prev) => [
+              ...prev,
+              { type: 'thought', stage: event.stage, message: event.message },
+            ])
           } else if (event.type === 'results') {
             onResults(event.data)
 
@@ -140,29 +113,21 @@ export default function Chat({ onResults, hasStarted, onStart, messages, setMess
               'Analysis complete — see the heatmap and cassette diagram for results.'
 
             setMessages((prev) => [
-              ...prev.map((m) =>
-                m.id === pipelineId ? { ...m, done: true } : m
-              ),
+              ...prev,
               { type: 'assistant', content: summary },
             ])
           } else if (event.type === 'error') {
-            setMessages((prev) =>
-              prev.map((m) =>
-                m.id === pipelineId
-                  ? { ...m, done: true, error: event.message }
-                  : m
-              )
-            )
+            setMessages((prev) => [
+              ...prev,
+              { type: 'assistant', content: event.message, isError: true },
+            ])
           }
         }
       } catch (err) {
-        setMessages((prev) =>
-          prev.map((m) =>
-            m.id === pipelineId
-              ? { ...m, done: true, error: err.message }
-              : m
-          )
-        )
+        setMessages((prev) => [
+          ...prev,
+          { type: 'assistant', content: err.message, isError: true },
+        ])
       } finally {
         setLoading(false)
         inputRef.current?.focus()
@@ -254,24 +219,25 @@ export default function Chat({ onResults, hasStarted, onStart, messages, setMess
       {/* Messages */}
       <div className="flex-1 overflow-y-auto p-4 space-y-3">
         {messages.map((msg, i) => {
-          if (msg.type === 'user') return <UserBubble key={i} content={msg.content} />
-          if (msg.type === 'pipeline') {
-            return (
-              <div key={i} className="flex justify-start">
-                <div style={{ maxWidth: '90%', width: '100%' }}>
-                  <PipelineStatus
-                    stages={msg.stages}
-                    done={msg.done}
-                    error={msg.error}
-                  />
-                </div>
-              </div>
-            )
-          }
-          return (
-            <AssistantBubble key={i} content={msg.content} isError={msg.isError} />
+          const isLastOfType = loading && !messages.slice(i + 1).some(
+            (m) => m.type === 'status' || m.type === 'thought' || m.type === 'assistant'
           )
+          if (msg.type === 'user') return <UserBubble key={i} content={msg.content} />
+          if (msg.type === 'status') return <StatusLine key={i} message={msg.message} isActive={isLastOfType && msg.type === 'status'} />
+          if (msg.type === 'thought') return <ThoughtBubble key={i} message={msg.message} isActive={isLastOfType && msg.type === 'thought'} />
+          if (msg.type === 'assistant') return <AssistantBubble key={i} content={msg.content} isError={msg.isError} />
+          return null
         })}
+
+        {loading && (
+          <div className="flex items-center gap-2 text-xs" style={{ color: '#9ca3af' }}>
+            <span className="loading-dots" aria-label="Processing">
+              <span /><span /><span />
+            </span>
+            <span>Processing…</span>
+          </div>
+        )}
+
         <div ref={bottomRef} />
       </div>
 

@@ -2,20 +2,20 @@
   "ranking": [
     {
       "rank": 1,
-      "sequence": "GGGTGCCCTGTTCACGTGACGTCGCCCGCTCAGCAAACAGCAAGTTCCCGCCTACTTCAGGAAGCATCGCGCGCGAGTGAATACTCATGATGAGATAACCAGCACGTGGTCACGCGCAATCCTGGCCCCGTCCCCTGTAGAGCGCACCTATAGCGGAGCCTGGCTAGCCTGAGCCGGCGCCTTGGATATACAGGTAACCA",
-      "sequence_display": "GGGTGCCCTGTTCACGTGAC...CTTGGATATACAGGTAACCA",
-      "on_target_score": 15.1125,
-      "specificity_ratio": 0.7134,
-      "combined_score": 10.7814,
-      "top_class": "E4 Multi-tissue",
+      "sequence": "CTCCATCTGTGTGAGTCTGCTTCCTATTTGCTTAGGCTCTGGCTTCCTTCTGACCTGCCCAGGAGCAAAGTCTACTTCTTATCTCCAGGGACAAAACCAGAGCAAGTTGTGTGTGTGTGACATTCAGGGTCTTTTGTTGGCACTGTGGGTTTCTTCTGTTCTTCTTTCTAAAAAGAAAGAGAAAATGCCTTGAGTCTCAC",
+      "sequence_display": "CTCCATCTGTGTGAGTCTGC...GAAAATGCCTTGAGTCTCAC",
+      "on_target_score": 3.463,
+      "specificity_ratio": 1.1164,
+      "combined_score": 3.8662,
+      "top_class": "E5 B-cell-like",
       "flags": [
-        "HIGH_CPG"
+        "LOW_CPG"
       ]
     }
   ],
   "recommendation": {
     "rank": 1,
-    "explanation": "This candidate's blood-relevant activity is driven by the E12 Erythroblast-like class (score 15.11), consistent with hematopoietic regulatory logic, but the top-scoring Sei class is actually E4 Multi-tissue (21.18), with strong CTCF/Cohesin insulator (20.36) and Promoter (18.61) signatures, indicating a broadly active element rather than a blood-specific enhancer. The specificity ratio of 0.71 confirms substantial off-target potential\u2014particularly in epithelial (E6: 18.02) and stem cell (E1: 11.39) contexts\u2014making this element unsuitable for in vivo AAV delivery where tight blood-lineage restriction is required without additional engineering. Additionally, the HIGH_CPG flag raises concern for CpG methylation-mediated silencing over time in vivo, which could attenuate long-term transgene expression in hematopoietic cells.",
+    "explanation": "This candidate achieves strong activation of the E5 B-cell-like enhancer class (3.463) alongside notable E11 T-cell (2.10) signal, consistent with a hematopoietic regulatory logic involving lymphoid lineage transcription factor binding sites\u2014making it well-suited for blood-targeted expression. However, the specificity ratio of ~1.12 is modest, driven by substantial co-activation of broad regulatory classes including P Promoter (3.10), E4 Multi-tissue (2.53), and E6 Weak epithelial (2.18), which raises concern for appreciable off-target expression in non-hematopoietic tissues during in vivo AAV delivery. The LOW_CPG flag is consistent with a CpG-depleted enhancer architecture typical of differentiated somatic lineages and is unlikely to be functionally detrimental, but the limited specificity margin warrants experimental validation in multi-tissue reporter assays before clinical consideration.",
     "cassette": {
       "elements": [
         "5'ITR",
@@ -37,10 +37,10 @@
       "aav_limit_bp": 4700,
       "headroom_bp": 2180,
       "promoter": "minTBG",
-      "enhancer_sequence": "GGGTGCCCTGTTCACGTGACGTCGCCCGCTCAGCAAACAGCAAGTTCCCGCCTACTTCAGGAAGCATCGCGCGCGAGTGAATACTCATGATGAGATAACCAGCACGTGGTCACGCGCAATCCTGGCCCCGTCCCCTGTAGAGCGCACCTATAGCGGAGCCTGGCTAGCCTGAGCCGGCGCCTTGGATATACAGGTAACCA"
+      "enhancer_sequence": "CTCCATCTGTGTGAGTCTGCTTCCTATTTGCTTAGGCTCTGGCTTCCTTCTGACCTGCCCAGGAGCAAAGTCTACTTCTTATCTCCAGGGACAAAACCAGAGCAAGTTGTGTGTGTGTGACATTCAGGGTCTTTTGTTGGCACTGTGGGTTTCTTCTGTTCTTCTTTCTAAAAAGAAAGAGAAAATGCCTTGAGTCTCAC"
     }
   },
-  "summary": "This element activates blood-related (erythroblast) regulatory programs but is too broadly active across multiple tissues and carries a methylation silencing risk, so it would likely need further optimization before use as a blood-specific regulatory element in gene therapy.",
+  "summary": "This synthetic element strongly activates blood-associated B-cell and T-cell enhancer programs but also engages broad promoter and multi-tissue classes, so while it is a reasonable blood-targeted candidate it may need further optimization to minimize off-target expression in other tissues.",
   "cassette": {
     "elements": [
       "5'ITR",
@@ -62,6 +62,6 @@
     "aav_limit_bp": 4700,
     "headroom_bp": 2180,
     "promoter": "minTBG",
-    "enhancer_sequence": "GGGTGCCCTGTTCACGTGACGTCGCCCGCTCAGCAAACAGCAAGTTCCCGCCTACTTCAGGAAGCATCGCGCGCGAGTGAATACTCATGATGAGATAACCAGCACGTGGTCACGCGCAATCCTGGCCCCGTCCCCTGTAGAGCGCACCTATAGCGGAGCCTGGCTAGCCTGAGCCGGCGCCTTGGATATACAGGTAACCA"
+    "enhancer_sequence": "CTCCATCTGTGTGAGTCTGCTTCCTATTTGCTTAGGCTCTGGCTTCCTTCTGACCTGCCCAGGAGCAAAGTCTACTTCTTATCTCCAGGGACAAAACCAGAGCAAGTTGTGTGTGTGTGACATTCAGGGTCTTTTGTTGGCACTGTGGGTTTCTTCTGTTCTTCTTTCTAAAAAGAAAGAGAAAATGCCTTGAGTCTCAC"
   }
 }
