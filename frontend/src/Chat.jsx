@@ -1,33 +1,142 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { sendChatMessage } from './api.js'
 
-function StatusLine({ message, isActive }) {
-  return (
-    <div className="flex justify-start">
-      <div
-        className="flex items-center text-xs rounded-lg px-3 py-1.5"
-        style={{ color: '#6b7280', background: '#f3f4f6' }}
-      >
-        <span>{message}</span>
-        {isActive && <span className="inline-spinner" />}
-      </div>
-    </div>
-  )
+// ---------------------------------------------------------------------------
+// Dwell times (ms) — minimum display time before revealing the next item.
+// On live runs, natural API latency fills most of this; on cache hits these
+// timers simulate real run pacing.
+// ---------------------------------------------------------------------------
+const THOUGHT_DWELL = {
+  parsing: 5000,
+  designing: 10000,
+  generating: 30000,
+  scoring: 30000,
+  interpreting: 10000,
 }
+const MESSAGE_DWELL = 800
+
+// ---------------------------------------------------------------------------
+// useMessageQueue — queues backend events and reveals them with dwell timers.
+// Operates directly on the parent's setMessages so state survives remounts
+// (Chat remounts when transitioning from landing → active layout).
+// ---------------------------------------------------------------------------
+function useMessageQueue(setMessages) {
+  const queueRef = useRef([])
+  const timerRef = useRef(null)
+  const drainingRef = useRef(false)
+
+  const drain = useCallback(() => {
+    if (queueRef.current.length === 0) {
+      drainingRef.current = false
+      return
+    }
+    drainingRef.current = true
+
+    const next = queueRef.current.shift()
+
+    // Fire side-effect callback if present (e.g. showing plots)
+    if (next.onShow) next.onShow()
+
+    // Resolve the previous thought's spinner, then append the new item
+    const item = { ...next }
+    delete item.onShow
+    setMessages((prev) => {
+      const updated = prev.map((m) =>
+        m.type === 'thought' && !m.resolved ? { ...m, resolved: true } : m
+      )
+      return [...updated, item]
+    })
+
+    // Determine dwell for this item before showing the next
+    let dwell = 0
+    if (next.type === 'thought') {
+      dwell = THOUGHT_DWELL[next.stage] || 3000
+    } else if (next.type === 'message') {
+      dwell = MESSAGE_DWELL
+    }
+
+    timerRef.current = setTimeout(drain, dwell)
+  }, [setMessages])
+
+  const enqueue = useCallback(
+    (event) => {
+      queueRef.current.push(event)
+      if (!drainingRef.current) {
+        drain()
+      }
+    },
+    [drain]
+  )
+
+  const addDirect = useCallback(
+    (item) => {
+      // Bypass queue — immediate display (user messages, errors)
+      setMessages((prev) => [...prev, item])
+    },
+    [setMessages]
+  )
+
+  const isIdle = useCallback(() => {
+    return queueRef.current.length === 0 && !drainingRef.current
+  }, [])
+
+  const flush = useCallback(() => {
+    // Resolve any remaining thoughts and clear timer
+    if (timerRef.current) clearTimeout(timerRef.current)
+    timerRef.current = null
+    drainingRef.current = false
+    queueRef.current = []
+    setMessages((prev) =>
+      prev.map((m) =>
+        m.type === 'thought' && !m.resolved ? { ...m, resolved: true } : m
+      )
+    )
+  }, [setMessages])
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (timerRef.current) clearTimeout(timerRef.current)
+    }
+  }, [])
+
+  return { enqueue, addDirect, isIdle, flush }
+}
+
+// ---------------------------------------------------------------------------
+// Components
+// ---------------------------------------------------------------------------
 
 function ThoughtBubble({ message, isActive }) {
   return (
     <div className="flex justify-start">
       <div
-        className="text-sm whitespace-pre-wrap flex items-start"
+        className="thought-line text-sm whitespace-pre-wrap flex items-start"
         style={{
-          color: '#374151',
+          color: '#6b7280',
           maxWidth: '90%',
           lineHeight: 1.6,
         }}
       >
         <span>{message}</span>
         {isActive && <span className="inline-spinner" style={{ marginTop: 5 }} />}
+      </div>
+    </div>
+  )
+}
+
+function MessageBubble({ message }) {
+  return (
+    <div className="flex justify-start">
+      <div
+        className="text-sm whitespace-pre-wrap"
+        style={{
+          color: '#1a1a1a',
+          maxWidth: '90%',
+          lineHeight: 1.6,
+        }}
+      >
+        {message}
       </div>
     </div>
   )
@@ -68,12 +177,18 @@ function AssistantBubble({ content, isError }) {
   )
 }
 
+// ---------------------------------------------------------------------------
+// Chat
+// ---------------------------------------------------------------------------
+
 export default function Chat({ onResults, hasStarted, onStart, messages, setMessages }) {
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
   const bottomRef = useRef(null)
   const inputRef = useRef(null)
+  const { enqueue, addDirect, isIdle, flush } = useMessageQueue(setMessages)
 
+  // Auto-scroll
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
@@ -84,56 +199,50 @@ export default function Chat({ onResults, hasStarted, onStart, messages, setMess
       const prompt = input.trim()
       if (!prompt || loading) return
 
-      // Trigger transition on first submit
       if (!hasStarted && onStart) onStart()
 
       setInput('')
       setLoading(true)
 
-      setMessages((prev) => [...prev, { type: 'user', content: prompt }])
+      // User message — immediate display
+      addDirect({ type: 'user', content: prompt })
 
       try {
         for await (const event of sendChatMessage(prompt)) {
-          if (event.type === 'status') {
-            setMessages((prev) => [
-              ...prev,
-              { type: 'status', stage: event.stage, message: event.message },
-            ])
-          } else if (event.type === 'thought') {
-            setMessages((prev) => [
-              ...prev,
-              { type: 'thought', stage: event.stage, message: event.message },
-            ])
+          if (event.type === 'thought') {
+            enqueue({ type: 'thought', stage: event.stage, message: event.message, resolved: false })
+          } else if (event.type === 'message') {
+            enqueue({ type: 'message', stage: event.stage, message: event.message })
           } else if (event.type === 'results') {
-            onResults(event.data)
-
             const summary =
               event.data?.interpretation?.summary ||
               event.data?.interpretation?.recommendation?.rationale ||
               'Analysis complete — see the heatmap and cassette diagram for results.'
-
-            setMessages((prev) => [
-              ...prev,
-              { type: 'assistant', content: summary },
-            ])
+            enqueue({ type: 'message', stage: 'results', message: summary, onShow: () => onResults(event.data) })
           } else if (event.type === 'error') {
-            setMessages((prev) => [
-              ...prev,
-              { type: 'assistant', content: event.message, isError: true },
-            ])
+            // Errors bypass queue and resolve any active thought
+            flush()
+            addDirect({ type: 'error', content: event.message })
           }
         }
       } catch (err) {
-        setMessages((prev) => [
-          ...prev,
-          { type: 'assistant', content: err.message, isError: true },
-        ])
-      } finally {
-        setLoading(false)
-        inputRef.current?.focus()
+        flush()
+        addDirect({ type: 'error', content: err.message })
       }
+
+      // Wait for queue to fully drain before clearing loading
+      const waitForDrain = () => {
+        if (isIdle()) {
+          flush() // resolve final thought spinner
+          setLoading(false)
+          inputRef.current?.focus()
+        } else {
+          setTimeout(waitForDrain, 200)
+        }
+      }
+      waitForDrain()
     },
-    [input, loading, onResults, hasStarted, onStart]
+    [input, loading, onResults, hasStarted, onStart, enqueue, addDirect, isIdle, flush]
   )
 
   const handleKeyDown = (e) => {
@@ -142,7 +251,7 @@ export default function Chat({ onResults, hasStarted, onStart, messages, setMess
     }
   }
 
-  /* ── Landing mode: centered input with title ── */
+  /* -- Landing mode: centered input with title -- */
   if (!hasStarted) {
     return (
       <div style={{ width: '100%', maxWidth: 696 }}>
@@ -179,7 +288,7 @@ export default function Chat({ onResults, hasStarted, onStart, messages, setMess
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
               disabled={loading}
-              placeholder="Design a liver-specific enhancer for AAV delivery…"
+              placeholder="Design a liver-specific enhancer for AAV delivery..."
               style={{
                 flex: 1,
                 background: 'transparent',
@@ -205,7 +314,7 @@ export default function Chat({ onResults, hasStarted, onStart, messages, setMess
                 transition: 'all 200ms ease',
               }}
             >
-              {loading ? '…' : 'Send'}
+              {loading ? '...' : 'Send'}
             </button>
           </div>
         </form>
@@ -213,39 +322,32 @@ export default function Chat({ onResults, hasStarted, onStart, messages, setMess
     )
   }
 
-  /* ── Active mode: full chat panel ── */
+  /* -- Active mode: full chat panel -- */
   return (
     <div className="flex flex-col h-full">
       {/* Messages */}
       <div className="flex-1 overflow-y-auto p-4 space-y-3">
         {messages.map((msg, i) => {
-          const isLastOfType = loading && !messages.slice(i + 1).some(
-            (m) => m.type === 'status' || m.type === 'thought' || m.type === 'assistant'
-          )
           if (msg.type === 'user') return <UserBubble key={i} content={msg.content} />
-          if (msg.type === 'status') return <StatusLine key={i} message={msg.message} isActive={isLastOfType && msg.type === 'status'} />
-          if (msg.type === 'thought') return <ThoughtBubble key={i} message={msg.message} isActive={isLastOfType && msg.type === 'thought'} />
-          if (msg.type === 'assistant') return <AssistantBubble key={i} content={msg.content} isError={msg.isError} />
+          if (msg.type === 'thought')
+            return (
+              <ThoughtBubble
+                key={i}
+                message={msg.message}
+                isActive={!msg.resolved}
+              />
+            )
+          if (msg.type === 'message') return <MessageBubble key={i} message={msg.message} />
+          if (msg.type === 'error')
+            return <AssistantBubble key={i} content={msg.content} isError />
           return null
         })}
-
-        {loading && (
-          <div className="flex items-center gap-2 text-xs" style={{ color: '#9ca3af' }}>
-            <span className="loading-dots" aria-label="Processing">
-              <span /><span /><span />
-            </span>
-            <span>Processing…</span>
-          </div>
-        )}
 
         <div ref={bottomRef} />
       </div>
 
       {/* Input */}
-      <form
-        onSubmit={handleSubmit}
-        style={{ padding: 16 }}
-      >
+      <form onSubmit={handleSubmit} style={{ padding: 16 }}>
         <div
           style={{
             display: 'flex',
@@ -264,7 +366,7 @@ export default function Chat({ onResults, hasStarted, onStart, messages, setMess
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
             disabled={loading}
-            placeholder="Ask a follow-up or start a new design…"
+            placeholder="Ask a follow-up or start a new design..."
             style={{
               flex: 1,
               background: 'transparent',
@@ -290,7 +392,7 @@ export default function Chat({ onResults, hasStarted, onStart, messages, setMess
               transition: 'all 200ms ease',
             }}
           >
-            {loading ? '…' : 'Send'}
+            {loading ? '...' : 'Send'}
           </button>
         </div>
       </form>

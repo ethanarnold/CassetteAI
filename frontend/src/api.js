@@ -2,7 +2,8 @@
  * Send a chat message and async-iterate over parsed SSE events.
  *
  * Yielded event shapes (mirrors backend/orchestrator.py):
- *   { type: "status", stage: string, message: string, intent?: object }
+ *   { type: "thought", stage: string, message: string }
+ *   { type: "message", stage: string, message: string }
  *   { type: "results", data: { generation, scoring, interpretation, cassette } }
  *   { type: "error",  message: string }
  */

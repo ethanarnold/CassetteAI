@@ -70,3 +70,10 @@ html, body {
 .fade-in {
   animation: fadeIn 400ms ease-out;
 }
+
+/* ── Thought line (left-border accent) ── */
+.thought-line {
+  padding-left: 12px;
+  border-left: 2px solid #d1d5db;
+  font-style: italic;
+}
