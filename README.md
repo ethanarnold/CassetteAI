@@ -1,50 +1,10 @@
 # CassetteAI
 
-**Natural language → Claude → generative DNA model → tissue-specificity scoring → Claude interpretation → cassette design.**
+**Natural language → Claude → generative DNA → tissue scoring → interpretation → cassette design.**
 
 A gene therapy design tool where you describe what you need in plain English and get back ranked, scored regulatory element candidates composed into a ready-to-use AAV cassette — in minutes.
 
----
-
-## Architecture
-
-```
-┌──────────────┐
-│   Frontend    │  React chat UI + sequence viewer + heatmap + cassette SVG
-└──────┬───────┘
-       │ user prompt
-       ▼
-┌──────────────┐
-│    Claude     │  Parse intent → extract: tissue, length, constraints
-│ Orchestrator  │  Dispatch pipeline stages → interpret results
-└──────┬───────┘
-       │ structured params
-       ▼
-┌──────────────┐
-│  Cache Layer  │  Check for pre-computed results (keyed by normalized prompt)
-│  (~40 LOC)   │  Cache hit → return immediately. Cache miss → call Modal.
-└──────┬───────┘
-       │
-       ▼
-┌──────────────────────────────────────────────────┐
-│                 Modal GPU Backend                  │
-│                                                    │
-│  Stage 1: DNA-Diffusion (generate candidates)      │
-│  Stage 2: Sei (score tissue specificity)           │
-│                                                    │
-└──────────────────────────────────────────────────┘
-       │
-       ▼
-┌──────────────┐
-│    Claude     │  Interpret Sei scores, rank candidates, flag artifacts,
-│  Interpret    │  compose final cassette, generate explanation
-└──────┬───────┘
-       │
-       ▼
-┌──────────────┐
-│   Frontend    │  Render: heatmap, cassette diagram, natural language summary
-└──────────────┘
-```
+The pipeline: Claude parses your intent, DNA-Diffusion generates candidate 200 bp regulatory elements on Modal GPUs, Sei scores them across 21,907 chromatin profiles, then Claude interprets the results, ranks candidates, and assembles a final AAV cassette with a natural-language explanation.
 
 ---
 
