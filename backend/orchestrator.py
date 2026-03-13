@@ -17,7 +17,7 @@ logger = logging.getLogger("cassetteai.pipeline")
 logging.basicConfig(level=logging.DEBUG, format="%(name)s | %(message)s")
 
 from backend.cache import get_cached, set_cache
-from backend.interpret import compose_cassette, interpret_scores
+from backend.interpret import compose_cassette, interpret_scores, interpret_scores_streaming
 
 # ---------------------------------------------------------------------------
 # Lazy Anthropic client (avoids import-time API key requirement)
@@ -269,40 +269,59 @@ async def _stream_conversation(
     yield {"type": "stream_end", "stage": "conversation"}
 
 
-async def _paraphrase_request(
+async def _stream_paraphrase(
     user_prompt: str,
     tissue: str,
     length_bp: int,
     constraints: list[str],
-) -> str:
-    """Use Claude Sonnet to paraphrase the user's request into a brief
-    explanation of what we understood and what we'll do."""
+    plan_text: str,
+) -> AsyncGenerator[dict[str, Any], None]:
+    """Stream the paraphrase + plan text token-by-token.
+
+    Yields:
+        {"type": "stream_start", "stage": "parsing"}
+        {"type": "stream_delta", "delta": str}   (one per chunk)
+        {"type": "stream_end",   "stage": "parsing"}
+    """
     client = get_anthropic_client()
     logger.info("Claude Sonnet received message: %s", user_prompt)
     constraint_note = f" Constraints: {', '.join(constraints)}." if constraints else ""
-    response = await client.messages.create(
-        model="claude-sonnet-4-20250514",
-        max_tokens=200,
-        system=(
-            "You are a gene therapy design assistant. The user asked you to "
-            "design a synthetic regulatory element. Paraphrase their request "
-            "in 1-2 sentences, confirming the target tissue, element length, "
-            "and any special constraints. Be concise and conversational. "
-            "Do not use emojis. Do not use markdown formatting. "
-            "Speak in the first person (e.g. 'I understand you want...')."
-        ),
-        messages=[
-            {
-                "role": "user",
-                "content": (
-                    f"Original request: {user_prompt}\n\n"
-                    f"Parsed parameters: tissue={tissue}, "
-                    f"length={length_bp} bp.{constraint_note}"
-                ),
-            }
-        ],
-    )
-    return response.content[0].text.strip()
+
+    yield {"type": "stream_start", "stage": "parsing"}
+
+    try:
+        async with client.messages.stream(
+            model="claude-sonnet-4-20250514",
+            max_tokens=200,
+            system=(
+                "You are a gene therapy design assistant. The user asked you to "
+                "design a synthetic regulatory element. Paraphrase their request "
+                "in 1-2 sentences, confirming the target tissue, element length, "
+                "and any special constraints. Be concise and conversational. "
+                "Do not use emojis. Do not use markdown formatting. "
+                "Speak in the first person (e.g. 'I understand you want...')."
+            ),
+            messages=[
+                {
+                    "role": "user",
+                    "content": (
+                        f"Original request: {user_prompt}\n\n"
+                        f"Parsed parameters: tissue={tissue}, "
+                        f"length={length_bp} bp.{constraint_note}"
+                    ),
+                }
+            ],
+        ) as stream:
+            async for text in stream.text_stream:
+                yield {"type": "stream_delta", "delta": text}
+    except Exception as exc:
+        logger.error("Paraphrase stream failed: %s", exc)
+        yield {"type": "stream_end", "stage": "parsing"}
+        return
+
+    # Append the plan text as a final delta
+    yield {"type": "stream_delta", "delta": "\n\n" + plan_text}
+    yield {"type": "stream_end", "stage": "parsing"}
 
 
 # ---------------------------------------------------------------------------
@@ -354,7 +373,6 @@ async def run_pipeline(
         }
         return
 
-    paraphrase = await _paraphrase_request(user_prompt, tissue, length_bp, constraints)
     constraint_note = f" Constraints: {', '.join(constraints)}." if constraints else ""
     plan_text = (
         f"I'll design {length_bp} bp {tissue}-specific enhancers by generating "
@@ -362,7 +380,8 @@ async def run_pipeline(
         f"then scoring each one with Sei across 40 regulatory tissue classes "
         f"to find the most tissue-specific element.{constraint_note}"
     )
-    yield _make_message("parsing", paraphrase=paraphrase, plan_text=plan_text)
+    async for event in _stream_paraphrase(user_prompt, tissue, length_bp, constraints, plan_text):
+        yield event
 
     # ── Step 2: Cache probe (results used inline per-stage below) ────────
     cached_gen: dict | None = get_cached(user_prompt, "generation")
@@ -458,13 +477,17 @@ async def run_pipeline(
     yield _make_message("scoring", scored_count=len(scored), tissue=tissue)
 
     # ── Step 6: Interpretation ────────────────────────────────────────────
-    yield _make_thought("interpreting")
-
+    interp_streamed = False
     interpretation: dict[str, Any]
+
     if cached_interp:
         interpretation = cached_interp
     else:
-        interpretation = await interpret_scores(scored, tissue)
+        yield _make_thought("interpreting")
+        interpretation = {}
+        async for event in interpret_scores_streaming(scored, tissue, interpretation):
+            interp_streamed = True
+            yield event
         set_cache(user_prompt, "interpretation", interpretation)
         cached_interp = interpretation
 
@@ -481,6 +504,7 @@ async def run_pipeline(
 
     yield {
         "type": "results",
+        "streamed": interp_streamed,
         "data": {
             "tissue": tissue,
             "generation": cached_gen,

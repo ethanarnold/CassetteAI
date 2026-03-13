@@ -238,6 +238,7 @@ export default function Chat({ onResults, hasStarted, onStart, messages, setMess
       try {
         for await (const event of sendChatMessage(prompt, history)) {
           if (event.type === 'stream_start') {
+            flush()
             streamingRef.current = { active: true, text: '' }
             addDirect({ type: 'streaming', message: '' })
           } else if (event.type === 'stream_delta') {
@@ -261,11 +262,12 @@ export default function Chat({ onResults, hasStarted, onStart, messages, setMess
               rafRef.current = null
             }
             const finalText = streamingRef.current.text
+            const stage = event.stage || 'conversation'
             streamingRef.current = { active: false, text: '' }
             setMessages((prev) => {
               const last = prev[prev.length - 1]
               if (last && last.type === 'streaming') {
-                return [...prev.slice(0, -1), { type: 'message', stage: 'conversation', message: finalText }]
+                return [...prev.slice(0, -1), { type: 'message', stage, message: finalText }]
               }
               return prev
             })
@@ -274,11 +276,17 @@ export default function Chat({ onResults, hasStarted, onStart, messages, setMess
           } else if (event.type === 'message') {
             enqueue({ type: 'message', stage: event.stage, message: event.message })
           } else if (event.type === 'results') {
-            const summary =
-              event.data?.interpretation?.summary ||
-              event.data?.interpretation?.recommendation?.rationale ||
-              'Analysis complete — see the heatmap and cassette diagram for results.'
-            enqueue({ type: 'message', stage: 'results', message: summary, onShow: () => onResults(event.data) })
+            if (event.streamed) {
+              // Interpretation was already streamed token-by-token — just show plots
+              onResults(event.data)
+            } else {
+              // Cached run — enqueue the summary as a message
+              const summary =
+                event.data?.interpretation?.summary ||
+                event.data?.interpretation?.recommendation?.rationale ||
+                'Analysis complete — see the heatmap and cassette diagram for results.'
+              enqueue({ type: 'message', stage: 'results', message: summary, onShow: () => onResults(event.data) })
+            }
           } else if (event.type === 'error') {
             // Errors bypass queue and resolve any active thought
             flush()

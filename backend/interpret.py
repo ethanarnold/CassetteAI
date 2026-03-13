@@ -9,6 +9,7 @@ import json
 import logging
 import os
 import re
+from collections.abc import AsyncGenerator
 from pathlib import Path
 from typing import Any
 
@@ -365,6 +366,101 @@ async def interpret_scores(
         "summary": summary,
         "cassette": cassette,
     }
+
+
+async def interpret_scores_streaming(
+    sequences_with_scores: list[dict],
+    target_tissue: str,
+    result_out: dict[str, Any],
+) -> AsyncGenerator[dict[str, Any], None]:
+    """Stream the Opus interpretation token-by-token, populating result_out.
+
+    Yields:
+        {"type": "stream_start", "stage": "interpreting"}
+        {"type": "stream_delta", "delta": str}   (one per chunk)
+        {"type": "stream_end",   "stage": "interpreting"}
+
+    After streaming completes, result_out is populated with:
+        ranking, recommendation, summary, cassette
+    """
+    client = get_anthropic_client()
+    system_prompt = _load_interpret_prompt()
+
+    # Python re-ranking (same as interpret_scores)
+    ranked = rerank_candidates(sequences_with_scores, target_tissue)
+    top = ranked[0] if ranked else None
+
+    if not top:
+        result_out.update({"ranking": [], "recommendation": {}, "summary": "No candidates.", "cassette": {}})
+        return
+
+    seq = top["sequence"]
+    seq_display = seq[:20] + "..." + seq[-20:] if len(seq) > 44 else seq
+    cassette = compose_cassette(seq)
+
+    ranking_entry = {
+        "rank": 1,
+        "sequence": seq,
+        "sequence_display": seq_display,
+        "on_target_score": top["on_target_score"],
+        "specificity_ratio": top["specificity_ratio"],
+        "combined_score": top["combined_score"],
+        "top_class": top.get("top_class", ""),
+        "flags": top["flags"],
+    }
+
+    # Trimmed scores for Claude
+    scores = top.get("sei_scores", {})
+    top_keys = sorted(scores, key=lambda k: scores[k], reverse=True)[:8]
+    trimmed_scores = {k: round(scores[k], 4) for k in top_keys}
+
+    user_content = (
+        f"Target tissue: {target_tissue}\n\n"
+        f"Top candidate (rank 1 of {len(ranked)}):\n"
+        f"- On-target score: {top['on_target_score']}\n"
+        f"- Specificity ratio: {top['specificity_ratio']}\n"
+        f"- Combined score (on-target × specificity): {top['combined_score']}\n"
+        f"- Top Sei class: {top.get('top_class', 'N/A')}\n"
+        f"- GC%: {top['gc_pct']}\n"
+        f"- Flags: {', '.join(top['flags']) or 'none'}\n"
+        f"- Key scores: {json.dumps(trimmed_scores)}\n"
+    )
+
+    logger.info("Claude Opus streaming: %s", user_content[:200])
+
+    yield {"type": "stream_start", "stage": "interpreting"}
+
+    full_response = ""
+    try:
+        async with client.messages.stream(
+            model="claude-opus-4-6",
+            max_tokens=1024,
+            system=system_prompt,
+            messages=[{"role": "user", "content": user_content}],
+        ) as stream:
+            async for text in stream.text_stream:
+                full_response += text
+                yield {"type": "stream_delta", "delta": text}
+    except Exception as exc:
+        logger.error("Interpretation stream failed: %s", exc)
+        yield {"type": "stream_end", "stage": "interpreting"}
+        return
+
+    yield {"type": "stream_end", "stage": "interpreting"}
+
+    # Populate result_out with structured data
+    summary = full_response.strip()
+
+    result_out.update({
+        "ranking": [ranking_entry],
+        "recommendation": {
+            "rank": 1,
+            "explanation": summary,
+            "cassette": cassette,
+        },
+        "summary": summary,
+        "cassette": cassette,
+    })
 
 
 def _extract_json(text: str) -> dict[str, Any]:

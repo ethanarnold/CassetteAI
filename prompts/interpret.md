@@ -29,13 +29,6 @@ Write a **2–3 sentence scientific recommendation** for this candidate, as you 
 
 ## Output Format
 
-Return a single JSON object:
-
-```json
-{
-  "explanation": "2-3 sentence scientific recommendation...",
-  "summary": "1 sentence plain-language summary for a non-computational biologist."
-}
-```
+Write your response as **plain text** (no JSON, no markdown fences, no bullet points). It should be 2–3 sentences that a gene therapy scientist can read directly. The first 1–2 sentences should cover the scientific recommendation (tissue specificity, regulatory logic, caveats). The final sentence should be a plain-language summary suitable for a non-computational biologist.
 
 Be precise. Do not fabricate scores or invent biological properties not reflected in the Sei output.
