@@ -39,12 +39,6 @@ And gets back:
 └──────┬───────┘
        │ structured params
        ▼
-┌──────────────┐
-│  Cache Layer  │  Check for pre-computed results (keyed by normalized prompt)
-│  (~40 LOC)   │  Cache hit → return immediately. Cache miss → call Modal.
-└──────┬───────┘
-       │
-       ▼
 ┌──────────────────────────────────────────────────┐
 │                 Modal GPU Backend                  │
 │                                                    │
@@ -75,7 +69,6 @@ CassetteAI/
 │   ├── modal_generate.py       # DNA-Diffusion on Modal
 │   ├── modal_score.py          # Sei on Modal
 │   ├── orchestrator.py         # Claude orchestration + tool dispatch
-│   ├── cache.py                # Cache routing layer
 │   ├── interpret.py            # Claude interpretation prompt + parsing
 │   └── server.py               # API server (FastAPI) to serve frontend
 ├── frontend/
@@ -89,10 +82,6 @@ CassetteAI/
 ├── prompts/
 │   ├── system.md               # CassetteAI system prompt
 │   └── interpret.md            # Sei score interpretation prompt
-├── cache/
-│   ├── liver/                  # Cached run: HepG2 (primary demo)
-│   ├── cardiac/                # Cached run: K562 proxy
-│   └── neural/                 # Cached run: GM12878 proxy
 ├── SPEC.md                     # This file (single source of truth)
 └── CLAUDE.md                   # Pointers for agent context loading
 ```
@@ -227,61 +216,9 @@ def score_elements(sequences: list[str]) -> list[dict]:
 - [x] Structure output: `{sequence, sei_scores, top_class, specificity_ratio}`
 - [ ] Test: score HepG2 sequences, confirm liver signal >> off-target signals
 
-### 1C. Cache Layer (`backend/cache.py`)
+### ~~1C. Cache Layer~~ (Removed)
 
-**Purpose:** Ensure demo reliability. Serve pre-computed results for known prompts. Fall through to live compute for novel prompts.
-
-```python
-import hashlib
-import json
-import os
-
-CACHE_DIR = "pipeline_cache"
-
-def cache_key(prompt: str) -> str:
-    normalized = prompt.lower().strip()
-    # Map common phrasings to canonical forms
-    for tissue in ["liver", "hepatocyte", "hepatic"]:
-        if tissue in normalized:
-            normalized = "liver_specific_enhancer"
-            break
-    for tissue in ["heart", "cardiac", "cardiomyocyte"]:
-        if tissue in normalized:
-            normalized = "cardiac_specific_enhancer"
-            break
-    for tissue in ["brain", "neuron", "neural", "cns"]:
-        if tissue in normalized:
-            normalized = "neural_specific_enhancer"
-            break
-    return hashlib.sha256(normalized.encode()).hexdigest()[:16]
-
-def get_cached(prompt: str, stage: str):
-    key = cache_key(prompt)
-    path = os.path.join(CACHE_DIR, key, f"{stage}.json")
-    if os.path.exists(path):
-        with open(path) as f:
-            return json.load(f)
-    return None
-
-def set_cache(prompt: str, stage: str, data):
-    key = cache_key(prompt)
-    os.makedirs(os.path.join(CACHE_DIR, key), exist_ok=True)
-    path = os.path.join(CACHE_DIR, key, f"{stage}.json")
-    with open(path, "w") as f:
-        json.dump(data, f)
-```
-
-**Pre-compute for these prompts:**
-1. `"Design a liver-specific enhancer for AAV delivery"` — primary demo
-2. `"Design a cardiac-specific enhancer for AAV delivery"` — encore/Q&A
-3. `"Design a neuron-specific enhancer for AAV delivery"` — backup
-
-Each cached run stores: `generation.json`, `scoring.json`, `interpretation.json`, `cassette.json`.
-
-**Build checklist:**
-- [x] Implement `cache_key()` with tissue-synonym normalization
-- [x] Implement `get_cached(prompt, stage)` and `set_cache(prompt, stage, data)`
-- [x] Cache directory structure: `cache/{key}/{stage}.json`
+Cache layer was removed — the pipeline always generates fresh results via Modal.
 
 ---
 
@@ -366,7 +303,7 @@ a gene therapy scientist would understand.
 **Build checklist:**
 - [x] Parse user intent → extract tissue, length, constraints
 - [x] Map tissue → DNA-Diffusion cell type + Sei target classes
-- [x] Implement pipeline: check cache → generate → score → interpret → compose cassette
+- [x] Implement pipeline: generate → score → interpret → compose cassette
 - [x] Wire up Claude API calls (Anthropic Messages API, claude-sonnet-4-20250514 for orchestration)
 - [x] Streaming support for frontend status updates (SSE-compatible yield events)
 
@@ -467,20 +404,9 @@ SVG rendering of the final AAV cassette:
 
 ---
 
-## Phase 5: Cache Population (Manual)
+## ~~Phase 5: Cache Population~~ (Removed)
 
-No separate precompute script is needed. The orchestrator automatically caches results for every pipeline run. To populate the cache for demo prompts:
-
-1. Deploy Modal functions: `modal deploy backend/modal_generate.py && modal deploy backend/modal_score.py`
-2. Run the app and submit your demo prompts (e.g. "Design a liver-targeted enhancer")
-3. Results are cached in `cache/{tissue}/` with 4 JSON files per tissue
-4. Re-running the same prompt serves cached results instantly
-
-**Build checklist:**
-- [ ] `modal deploy` both functions (manual — image build only, no GPU)
-- [ ] Run demo prompts through the app to populate cache
-- [ ] Verify cache/liver/, cache/cardiac/, cache/neural/ each have 4 JSON files
-- [ ] Verify cached results render correctly through full frontend
+Cache layer was removed — every run generates fresh results via Modal.
 
 ---
 
@@ -538,11 +464,11 @@ No separate precompute script is needed. The orchestrator automatically caches r
 
 | Risk | Likelihood | Impact | Mitigation |
 |------|-----------|--------|------------|
-| DNA-Diffusion weights not publicly available | MEDIUM | HIGH | Inspect repo for checkpoint availability; clear error message if unavailable; run prompts manually to cache results when weights are accessible |
-| Sei model fails to load on Modal | LOW | HIGH | Inspect repo for model loading; clear error message; run prompts to populate cache with real Sei outputs |
-| Claude interprets biology incorrectly | LOW | MEDIUM | Review cached interpretation from real Claude output; re-run prompts to refresh cache if needed |
-| Modal cold start during demo | MEDIUM | HIGH | Cache layer eliminates this for previously-run prompts |
-| WiFi fails at venue | MEDIUM | HIGH | Phone hotspot for Claude API; all other results cached |
+| DNA-Diffusion weights not publicly available | MEDIUM | HIGH | Inspect repo for checkpoint availability; clear error message if unavailable |
+| Sei model fails to load on Modal | LOW | HIGH | Inspect repo for model loading; clear error message |
+| Claude interprets biology incorrectly | LOW | MEDIUM | Review interpretation output; re-run prompts if needed |
+| Modal cold start during demo | MEDIUM | HIGH | Keep Modal functions warm before demo |
+| WiFi fails at venue | MEDIUM | HIGH | Phone hotspot for Claude API and Modal |
 | Judge asks for unsupported tissue | MEDIUM | LOW | Claude explains limitation honestly; show Sei can score any tissue even if generation is proxied |
 | Demo runs over 3 min | MEDIUM | MEDIUM | Rehearse 5x; time each section; cut Q&A prompt if tight |
 

@@ -28,5 +28,3 @@ Thumbs.db
 .idea/
 *.swp
 
-# Runtime cache (pipeline_cache/ is transient; cache/ holds golden demo runs and is committed)
-pipeline_cache/

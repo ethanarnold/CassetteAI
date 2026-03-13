@@ -58,17 +58,6 @@ Open http://localhost:5173 and try:
 
 ---
 
-## Cache
-
-The first run populates a local cache under `cache/`. Subsequent runs with the same (or synonymous) tissue prompt return instantly from cache — no GPU cold starts during demos.
-
-Cache directories:
-- `cache/liver/` — HepG2-conditioned elements
-- `cache/cardiac/` — K562 proxy
-- `cache/neural/` — GM12878 proxy
-
----
-
 ## Project Structure
 
 ```
@@ -77,7 +66,6 @@ CassetteAI/
 │   ├── modal_generate.py   # DNA-Diffusion on Modal (A100)
 │   ├── modal_score.py       # Sei on Modal (A100)
 │   ├── orchestrator.py      # Claude Sonnet intent parsing + pipeline dispatch
-│   ├── cache.py             # Tissue-keyed cache layer
 │   ├── interpret.py         # Claude Opus biological interpretation
 │   └── server.py            # FastAPI + SSE streaming
 ├── frontend/src/
@@ -89,7 +77,6 @@ CassetteAI/
 ├── prompts/
 │   ├── system.md            # CassetteAI system prompt
 │   └── interpret.md         # Sei interpretation prompt
-└── cache/                   # Populated by running prompts through the app
 ```
 
 ---

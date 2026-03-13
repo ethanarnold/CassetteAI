@@ -1,8 +1,8 @@
 """CassetteAI pipeline orchestrator.
 
-Parses user intent via Claude Sonnet, checks the cache, calls Modal GPU
-functions (DNA-Diffusion → Sei), interprets results via Claude Opus, and
-yields SSE-compatible status events as an async generator.
+Parses user intent via Claude Sonnet, calls Modal GPU functions
+(DNA-Diffusion → Sei), interprets results via Claude Opus, and yields
+SSE-compatible status events as an async generator.
 """
 
 import asyncio
@@ -16,7 +16,6 @@ from typing import Any
 logger = logging.getLogger("cassetteai.pipeline")
 logging.basicConfig(level=logging.DEBUG, format="%(name)s | %(message)s")
 
-from backend.cache import get_cached, set_cache
 from backend.interpret import compose_cassette, interpret_scores, interpret_scores_streaming
 
 # ---------------------------------------------------------------------------
@@ -50,7 +49,7 @@ _TISSUE_TO_CELL_TYPE: dict[str, str] = {
     "blood": "K562",
 }
 
-# Synonym → canonical tissue key (mirrors cache.py _TISSUE_MAP)
+# Synonym → canonical tissue key
 _TISSUE_SYNONYMS: dict[str, str] = {
     "liver": "liver",
     "hepatocyte": "liver",
@@ -383,133 +382,98 @@ async def run_pipeline(
     async for event in _stream_paraphrase(user_prompt, tissue, length_bp, constraints, plan_text):
         yield event
 
-    # ── Step 2: Cache probe (results used inline per-stage below) ────────
-    cached_gen: dict | None = get_cached(user_prompt, "generation")
-    cached_score: list | None = get_cached(user_prompt, "scoring")
-    cached_interp: dict | None = get_cached(user_prompt, "interpretation")
-    cached_cassette: dict | None = get_cached(user_prompt, "cassette")
-
-    # ── Step 3: Design (UX pacing beat) ───────────────────────────────────
+    # ── Step 2: Design (UX pacing beat) ─────────────────────────────────
     yield _make_thought("designing", tissue=tissue)
     yield _make_message("designing")
 
-    # ── Step 4: Generation ────────────────────────────────────────────────
+    # ── Step 3: Generation ────────────────────────────────────────────────
     yield _make_thought("generating")
 
-    sequences: list[str]
-    if cached_gen:
-        sequences = cached_gen["sequences"][:N_SAMPLES]
-    else:
-        try:
-            import modal  # type: ignore[import]
+    try:
+        import modal  # type: ignore[import]
 
-            generate_fn = modal.Function.from_name("dna-diffusion", "generate_elements")
-            logger.debug("── DNA-Diffusion INPUT ──")
-            logger.debug("  cell_type=%s  n_samples=%d", cell_type, N_SAMPLES)
-            sequences = await asyncio.to_thread(generate_fn.remote, cell_type, N_SAMPLES)
-        except Exception as exc:
-            yield {
-                "type": "error",
-                "message": (
-                    f"DNA-Diffusion generation failed: {exc}. "
-                    "Ensure the Modal function is deployed: "
-                    "`modal deploy backend/modal_generate.py`"
-                ),
-            }
-            return
-
-        logger.debug("── DNA-Diffusion OUTPUT ──")
-        logger.debug("  %d sequences generated, first 5:", len(sequences))
-        for i, s in enumerate(sequences[:5]):
-            logger.debug("    [%d] %s...%s", i, s[:30], s[-10:])
-
-        generation_data: dict[str, Any] = {
-            "sequences": sequences,
-            "cell_type": cell_type,
-            "n_sequences": len(sequences),
+        generate_fn = modal.Function.from_name("dna-diffusion", "generate_elements")
+        logger.debug("── DNA-Diffusion INPUT ──")
+        logger.debug("  cell_type=%s  n_samples=%d", cell_type, N_SAMPLES)
+        sequences = await asyncio.to_thread(generate_fn.remote, cell_type, N_SAMPLES)
+    except Exception as exc:
+        yield {
+            "type": "error",
+            "message": (
+                f"DNA-Diffusion generation failed: {exc}. "
+                "Ensure the Modal function is deployed: "
+                "`modal deploy backend/modal_generate.py`"
+            ),
         }
-        set_cache(user_prompt, "generation", generation_data)
-        cached_gen = generation_data
+        return
+
+    logger.debug("── DNA-Diffusion OUTPUT ──")
+    logger.debug("  %d sequences generated, first 5:", len(sequences))
+    for i, s in enumerate(sequences[:5]):
+        logger.debug("    [%d] %s...%s", i, s[:30], s[-10:])
+
+    generation_data: dict[str, Any] = {
+        "sequences": sequences,
+        "cell_type": cell_type,
+        "n_sequences": len(sequences),
+    }
 
     yield _make_message("generating", n_sequences=len(sequences))
 
-    # ── Step 5: Scoring ───────────────────────────────────────────────────
+    # ── Step 4: Scoring ───────────────────────────────────────────────────
     yield _make_thought("scoring")
 
-    scored: list[dict]
-    if cached_score:
-        scored = cached_score[:N_SAMPLES]
-    else:
-        try:
-            import modal  # type: ignore[import]
+    try:
+        import modal  # type: ignore[import]
 
-            score_fn = modal.Function.from_name("sei-scorer", "score_elements")
-            logger.debug("── Sei INPUT ──")
-            logger.debug("  Sending %d sequences to Sei scorer", len(sequences))
-            for i, s in enumerate(sequences[:3]):
-                logger.debug("    [%d] %s...%s", i, s[:30], s[-10:])
-            scored = await asyncio.to_thread(score_fn.remote, sequences)
-        except Exception as exc:
-            yield {
-                "type": "error",
-                "message": (
-                    f"Sei scoring failed: {exc}. "
-                    "Ensure the Modal function is deployed: "
-                    "`modal deploy backend/modal_score.py`"
-                ),
-            }
-            return
+        score_fn = modal.Function.from_name("sei-scorer", "score_elements")
+        logger.debug("── Sei INPUT ──")
+        logger.debug("  Sending %d sequences to Sei scorer", len(sequences))
+        for i, s in enumerate(sequences[:3]):
+            logger.debug("    [%d] %s...%s", i, s[:30], s[-10:])
+        scored = await asyncio.to_thread(score_fn.remote, sequences)
+    except Exception as exc:
+        yield {
+            "type": "error",
+            "message": (
+                f"Sei scoring failed: {exc}. "
+                "Ensure the Modal function is deployed: "
+                "`modal deploy backend/modal_score.py`"
+            ),
+        }
+        return
 
-        logger.debug("── Sei OUTPUT (top 20 by top_class score) ──")
-        ranked = sorted(scored, key=lambda d: max(d["sei_scores"].values()), reverse=True)
-        for i, entry in enumerate(ranked[:20]):
-            top3 = sorted(entry["sei_scores"].items(), key=lambda kv: kv[1], reverse=True)[:3]
-            top3_str = ", ".join(f"{n}: {v:.4f}" for n, v in top3)
-            logger.debug(
-                "    [%d] seq=%s...  top_class=%s  ratio=%.2f  | %s",
-                i, entry["sequence"][:20], entry["top_class"],
-                entry["specificity_ratio"], top3_str,
-            )
-
-        set_cache(user_prompt, "scoring", scored)
-        cached_score = scored
+    logger.debug("── Sei OUTPUT (top 20 by top_class score) ──")
+    ranked = sorted(scored, key=lambda d: max(d["sei_scores"].values()), reverse=True)
+    for i, entry in enumerate(ranked[:20]):
+        top3 = sorted(entry["sei_scores"].items(), key=lambda kv: kv[1], reverse=True)[:3]
+        top3_str = ", ".join(f"{n}: {v:.4f}" for n, v in top3)
+        logger.debug(
+            "    [%d] seq=%s...  top_class=%s  ratio=%.2f  | %s",
+            i, entry["sequence"][:20], entry["top_class"],
+            entry["specificity_ratio"], top3_str,
+        )
 
     yield _make_message("scoring", scored_count=len(scored), tissue=tissue)
 
-    # ── Step 6: Interpretation ────────────────────────────────────────────
-    interp_streamed = False
-    interpretation: dict[str, Any]
+    # ── Step 5: Interpretation ────────────────────────────────────────────
+    yield _make_thought("interpreting")
+    interpretation: dict[str, Any] = {}
+    async for event in interpret_scores_streaming(scored, tissue, interpretation):
+        yield event
 
-    if cached_interp:
-        interpretation = cached_interp
-    else:
-        yield _make_thought("interpreting")
-        interpretation = {}
-        async for event in interpret_scores_streaming(scored, tissue, interpretation):
-            interp_streamed = True
-            yield event
-        set_cache(user_prompt, "interpretation", interpretation)
-        cached_interp = interpretation
-
-    # ── Step 7: Cassette ──────────────────────────────────────────────────
-    cassette: dict[str, Any]
-    if cached_cassette:
-        cassette = cached_cassette
-    else:
-        ranking = interpretation.get("ranking", [])
-        top_seq = ranking[0].get("sequence", "") if ranking else ""
-        cassette = compose_cassette(top_seq) if top_seq else {}
-        set_cache(user_prompt, "cassette", cassette)
-        cached_cassette = cassette
+    # ── Step 6: Cassette ──────────────────────────────────────────────────
+    ranking = interpretation.get("ranking", [])
+    top_seq = ranking[0].get("sequence", "") if ranking else ""
+    cassette = compose_cassette(top_seq) if top_seq else {}
 
     yield {
         "type": "results",
-        "streamed": interp_streamed,
         "data": {
             "tissue": tissue,
-            "generation": cached_gen,
-            "scoring": cached_score,
-            "interpretation": cached_interp,
-            "cassette": cached_cassette,
+            "generation": generation_data,
+            "scoring": scored,
+            "interpretation": interpretation,
+            "cassette": cassette,
         },
     }

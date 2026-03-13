@@ -3,8 +3,7 @@ import { sendChatMessage } from './api.js'
 
 // ---------------------------------------------------------------------------
 // Dwell times (ms) — minimum display time before revealing the next item.
-// On live runs, natural API latency fills most of this; on cache hits these
-// timers simulate real run pacing.
+// On live runs, natural API latency fills most of this.
 // ---------------------------------------------------------------------------
 const THOUGHT_DWELL = {
   parsing: 5000,
@@ -276,17 +275,7 @@ export default function Chat({ onResults, hasStarted, onStart, messages, setMess
           } else if (event.type === 'message') {
             enqueue({ type: 'message', stage: event.stage, message: event.message })
           } else if (event.type === 'results') {
-            if (event.streamed) {
-              // Interpretation was already streamed token-by-token — just show plots
-              onResults(event.data)
-            } else {
-              // Cached run — enqueue the summary as a message
-              const summary =
-                event.data?.interpretation?.summary ||
-                event.data?.interpretation?.recommendation?.rationale ||
-                'Analysis complete — see the heatmap and cassette diagram for results.'
-              enqueue({ type: 'message', stage: 'results', message: summary, onShow: () => onResults(event.data) })
-            }
+            onResults(event.data)
           } else if (event.type === 'error') {
             // Errors bypass queue and resolve any active thought
             flush()

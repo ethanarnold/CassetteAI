@@ -23,7 +23,7 @@
 6. Pin all dependency versions. Never add a dependency without stating why.
 
 ### Biology / Domain
-7. Never fabricate biological data (sequences, scores, etc.). Use cached golden runs or real model outputs only.
+7. Never fabricate biological data (sequences, scores, etc.). Use real model outputs only.
 8. When describing biology to users/judges, be transparent about limitations (e.g., proxied cell types).
 
 ### Code Quality
@@ -31,10 +31,6 @@
 10. Use Sonnet for orchestration/parsing, Opus for biological interpretation.
 11. Use streaming for all user-facing Claude responses.
 
-### Demo / Cache
-12. Never delete or overwrite files in `cache/` without confirmation — these are golden demo runs.
-13. Test against cached prompts before modifying the cache layer.
-
 ### Git
-14. Commit frequently with descriptive messages.
-15. Never force-push.
+12. Commit frequently with descriptive messages.
+13. Never force-push.
