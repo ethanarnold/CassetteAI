@@ -123,26 +123,48 @@ def _make_message(
 # ---------------------------------------------------------------------------
 
 
-async def _parse_intent(user_prompt: str) -> dict[str, Any]:
-    """Use Claude Sonnet to extract structured design parameters from free text.
+async def _classify_and_parse(user_prompt: str) -> dict[str, Any]:
+    """Classify user message as conversation or design request via Claude Sonnet.
 
-    Returns a dict with keys:
-        target_tissue (str), length_bp (int), constraints (list[str])
-    Falls back to {'target_tissue': 'liver', 'length_bp': 200, 'constraints': []}
-    if parsing fails.
+    Returns either:
+        {"type": "conversation", "response": str}
+        {"type": "design", "target_tissue": str, "length_bp": int, "constraints": [str]}
+
+    Falls back to design with liver defaults if JSON parsing fails.
     """
     client = get_anthropic_client()
+    logger.info("Claude Opus received message: %s", user_prompt)
     response = await client.messages.create(
-        model="claude-sonnet-4-20250514",
+        model="claude-opus-4-20250514",
         max_tokens=512,
         system=(
-            "You are a gene therapy design assistant. "
-            "Extract structured design parameters from the user's request. "
-            "Return ONLY a raw JSON object with exactly these keys:\n"
-            '  "target_tissue": string (e.g. "liver", "cardiac", "neural", "blood"),\n'
-            '  "length_bp": integer (element length in bp, default 200),\n'
-            '  "constraints": array of strings (special requirements, empty if none).\n'
-            "Return ONLY the JSON, no other text or markdown fences."
+            "You are CassetteAI, a gene therapy design tool that generates "
+            "synthetic regulatory DNA elements (enhancers) optimized for "
+            "tissue-specific expression. You support liver, cardiac, neural, "
+            "and blood tissues. You use DNA-Diffusion for generation and Sei "
+            "for scoring tissue specificity.\n\n"
+            "Classify the user's message as either a design request or a "
+            "conversational message. Return ONLY a raw JSON object (no "
+            "markdown fences).\n\n"
+            "If the message is a design request (specifies a tissue or element "
+            "to design), return:\n"
+            '  {"type": "design", "target_tissue": "<tissue>", '
+            '"length_bp": <int, default 200>, "constraints": [<strings>]}\n\n'
+            "If the message is conversational (greeting, question about "
+            "capabilities, general biology question, or anything that is not "
+            "a concrete design request), return:\n"
+            '  {"type": "conversation", "response": "<2-4 sentence friendly '
+            "reply; no emoji, no markdown; may suggest trying a design "
+            'request>"}\n\n'
+            "Examples:\n"
+            '- "Hello" -> conversation\n'
+            '- "What do you do?" -> conversation\n'
+            '- "What tissues do you support?" -> conversation\n'
+            '- "Tell me about AAV" -> conversation\n'
+            '- "Can you design something?" -> conversation (no tissue specified)\n'
+            '- "Design a liver enhancer" -> design\n'
+            '- "I need a cardiac-specific regulatory element" -> design\n'
+            '- "Generate neural enhancers for AAV delivery" -> design'
         ),
         messages=[{"role": "user", "content": user_prompt}],
     )
@@ -156,7 +178,7 @@ async def _parse_intent(user_prompt: str) -> dict[str, Any]:
                 return json.loads(m.group(0))
             except json.JSONDecodeError:
                 pass
-    return {"target_tissue": "liver", "length_bp": 200, "constraints": []}
+    return {"type": "design", "target_tissue": "liver", "length_bp": 200, "constraints": []}
 
 
 async def _paraphrase_request(
@@ -168,6 +190,7 @@ async def _paraphrase_request(
     """Use Claude Sonnet to paraphrase the user's request into a brief
     explanation of what we understood and what we'll do."""
     client = get_anthropic_client()
+    logger.info("Claude Sonnet received message: %s", user_prompt)
     constraint_note = f" Constraints: {', '.join(constraints)}." if constraints else ""
     response = await client.messages.create(
         model="claude-sonnet-4-20250514",
@@ -214,14 +237,18 @@ async def run_pipeline(
     Flow: thought (spinner) → message (substantive) for each pipeline stage.
     On error the generator yields the error event then stops.
     """
-    # ── Step 1: Parse intent ──────────────────────────────────────────────
-    yield _make_thought("parsing")
+    # ── Step 1: Classify and route ─────────────────────────────────────────
+    result = await _classify_and_parse(user_prompt)
 
-    intent = await _parse_intent(user_prompt)
-    raw_tissue = intent.get("target_tissue", "liver")
+    if result.get("type") == "conversation":
+        yield {"type": "message", "stage": "conversation", "message": result.get("response", "")}
+        return
+
+    # ── Design path ──────────────────────────────────────────────────────
+    raw_tissue = result.get("target_tissue", "liver")
     tissue = _normalize_tissue(raw_tissue)
-    length_bp: int = int(intent.get("length_bp", 200))
-    constraints: list[str] = intent.get("constraints", [])
+    length_bp: int = int(result.get("length_bp", 200))
+    constraints: list[str] = result.get("constraints", [])
 
     # Map tissue before paraphrase so we can fail fast
     cell_type = _TISSUE_TO_CELL_TYPE.get(tissue)

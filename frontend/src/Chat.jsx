@@ -9,8 +9,8 @@ import { sendChatMessage } from './api.js'
 const THOUGHT_DWELL = {
   parsing: 5000,
   designing: 10000,
-  generating: 30000,
-  scoring: 30000,
+  generating: 20000,
+  scoring: 20000,
   interpreting: 10000,
 }
 const MESSAGE_DWELL = 800
