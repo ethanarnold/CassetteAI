@@ -39,10 +39,11 @@ app.add_middleware(
 
 class ChatRequest(BaseModel):
     prompt: str
+    history: list[dict[str, str]] = []
 
 
-async def _event_stream(prompt: str) -> AsyncGenerator[str, None]:
-    async for event in run_pipeline(prompt):
+async def _event_stream(prompt: str, history: list[dict[str, str]]) -> AsyncGenerator[str, None]:
+    async for event in run_pipeline(prompt, history=history):
         yield f"data: {json.dumps(event)}\n\n"
 
 
@@ -54,7 +55,7 @@ async def health() -> dict[str, str]:
 @app.post("/api/chat")
 async def chat(request: ChatRequest) -> StreamingResponse:
     return StreamingResponse(
-        _event_stream(request.prompt),
+        _event_stream(request.prompt, request.history),
         media_type="text/event-stream",
         headers={
             "Cache-Control": "no-cache",

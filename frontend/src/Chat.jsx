@@ -142,6 +142,24 @@ function MessageBubble({ message }) {
   )
 }
 
+function StreamingBubble({ message }) {
+  return (
+    <div className="flex justify-start">
+      <div
+        className="text-sm whitespace-pre-wrap"
+        style={{
+          color: '#1a1a1a',
+          maxWidth: '90%',
+          lineHeight: 1.6,
+        }}
+      >
+        {message}
+        <span className="streaming-cursor" />
+      </div>
+    </div>
+  )
+}
+
 function UserBubble({ content }) {
   return (
     <div className="flex justify-end">
@@ -186,6 +204,8 @@ export default function Chat({ onResults, hasStarted, onStart, messages, setMess
   const [loading, setLoading] = useState(false)
   const bottomRef = useRef(null)
   const inputRef = useRef(null)
+  const streamingRef = useRef({ active: false, text: '' })
+  const rafRef = useRef(null)
   const { enqueue, addDirect, isIdle, flush } = useMessageQueue(setMessages)
 
   // Auto-scroll
@@ -207,9 +227,49 @@ export default function Chat({ onResults, hasStarted, onStart, messages, setMess
       // User message — immediate display
       addDirect({ type: 'user', content: prompt })
 
+      // Build conversation history for backend context
+      const history = messages
+        .filter((m) => m.type === 'user' || m.type === 'message')
+        .map((m) => ({
+          role: m.type === 'user' ? 'user' : 'assistant',
+          content: m.type === 'user' ? m.content : m.message,
+        }))
+
       try {
-        for await (const event of sendChatMessage(prompt)) {
-          if (event.type === 'thought') {
+        for await (const event of sendChatMessage(prompt, history)) {
+          if (event.type === 'stream_start') {
+            streamingRef.current = { active: true, text: '' }
+            addDirect({ type: 'streaming', message: '' })
+          } else if (event.type === 'stream_delta') {
+            streamingRef.current.text += event.delta
+            if (!rafRef.current) {
+              rafRef.current = requestAnimationFrame(() => {
+                rafRef.current = null
+                const txt = streamingRef.current.text
+                setMessages((prev) => {
+                  const last = prev[prev.length - 1]
+                  if (last && last.type === 'streaming') {
+                    return [...prev.slice(0, -1), { ...last, message: txt }]
+                  }
+                  return prev
+                })
+              })
+            }
+          } else if (event.type === 'stream_end') {
+            if (rafRef.current) {
+              cancelAnimationFrame(rafRef.current)
+              rafRef.current = null
+            }
+            const finalText = streamingRef.current.text
+            streamingRef.current = { active: false, text: '' }
+            setMessages((prev) => {
+              const last = prev[prev.length - 1]
+              if (last && last.type === 'streaming') {
+                return [...prev.slice(0, -1), { type: 'message', stage: 'conversation', message: finalText }]
+              }
+              return prev
+            })
+          } else if (event.type === 'thought') {
             enqueue({ type: 'thought', stage: event.stage, message: event.message, resolved: false })
           } else if (event.type === 'message') {
             enqueue({ type: 'message', stage: event.stage, message: event.message })
@@ -230,9 +290,9 @@ export default function Chat({ onResults, hasStarted, onStart, messages, setMess
         addDirect({ type: 'error', content: err.message })
       }
 
-      // Wait for queue to fully drain before clearing loading
+      // Wait for queue to fully drain and streaming to finish before clearing loading
       const waitForDrain = () => {
-        if (isIdle()) {
+        if (isIdle() && !streamingRef.current.active) {
           flush() // resolve final thought spinner
           setLoading(false)
           inputRef.current?.focus()
@@ -242,7 +302,7 @@ export default function Chat({ onResults, hasStarted, onStart, messages, setMess
       }
       waitForDrain()
     },
-    [input, loading, onResults, hasStarted, onStart, enqueue, addDirect, isIdle, flush]
+    [input, loading, messages, onResults, hasStarted, onStart, enqueue, addDirect, isIdle, flush]
   )
 
   const handleKeyDown = (e) => {
@@ -338,6 +398,7 @@ export default function Chat({ onResults, hasStarted, onStart, messages, setMess
               />
             )
           if (msg.type === 'message') return <MessageBubble key={i} message={msg.message} />
+          if (msg.type === 'streaming') return <StreamingBubble key={i} message={msg.message} />
           if (msg.type === 'error')
             return <AssistantBubble key={i} content={msg.content} isError />
           return null

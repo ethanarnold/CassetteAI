@@ -7,13 +7,13 @@
  *   { type: "results", data: { generation, scoring, interpretation, cassette } }
  *   { type: "error",  message: string }
  */
-export async function* sendChatMessage(prompt) {
+export async function* sendChatMessage(prompt, history = []) {
   let response;
   try {
     response = await fetch('/api/chat', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ prompt }),
+      body: JSON.stringify({ prompt, history }),
     });
   } catch (err) {
     yield {

@@ -71,6 +71,9 @@ _TISSUE_SYNONYMS: dict[str, str] = {
 }
 
 
+N_SAMPLES = 300  # number of candidate sequences per run
+
+
 def _normalize_tissue(raw: str) -> str:
     return _TISSUE_SYNONYMS.get(raw.lower().strip(), raw.lower().strip())
 
@@ -123,50 +126,103 @@ def _make_message(
 # ---------------------------------------------------------------------------
 
 
-async def _classify_and_parse(user_prompt: str) -> dict[str, Any]:
+def _build_messages(
+    user_prompt: str,
+    history: list[dict[str, str]] | None = None,
+) -> list[dict[str, str]]:
+    """Build a Claude-compatible messages array from conversation history.
+
+    Ensures proper user/assistant alternation and prepends history context.
+    """
+    messages: list[dict[str, str]] = []
+    if history:
+        for m in history:
+            role = m.get("role", "user")
+            content = m.get("content", "")
+            if role in ("user", "assistant") and content:
+                messages.append({"role": role, "content": content})
+        # Ensure valid alternation: Claude API requires user/assistant turns
+        # to alternate. Merge consecutive same-role messages.
+        merged: list[dict[str, str]] = []
+        for msg in messages:
+            if merged and merged[-1]["role"] == msg["role"]:
+                merged[-1]["content"] += "\n" + msg["content"]
+            else:
+                merged.append(dict(msg))
+        messages = merged
+        # Claude API requires first message to be "user"
+        while messages and messages[0]["role"] != "user":
+            messages.pop(0)
+    messages.append({"role": "user", "content": user_prompt})
+    return messages
+
+
+_CLASSIFY_SYSTEM = (
+    "You are CassetteAI, a gene therapy design tool that generates "
+    "synthetic regulatory DNA elements (enhancers) optimized for "
+    "tissue-specific expression. You support liver, cardiac, neural, "
+    "and blood tissues. You use DNA-Diffusion for generation and Sei "
+    "for scoring tissue specificity.\n\n"
+    "Classify the user's message as either a design request or a "
+    "conversational message. Return ONLY a raw JSON object (no "
+    "markdown fences).\n\n"
+    "If the message is a design request (specifies a tissue or element "
+    "to design), return:\n"
+    '  {"type": "design", "target_tissue": "<tissue>", '
+    '"length_bp": <int, default 200>, "constraints": [<strings>]}\n\n'
+    "If the message is conversational (greeting, question about "
+    "capabilities, general biology question, follow-up question about "
+    "previous results, or anything that is not a concrete design "
+    "request), return:\n"
+    '  {"type": "conversation"}\n\n'
+    "Examples:\n"
+    '- "Hello" -> {"type": "conversation"}\n'
+    '- "What do you do?" -> {"type": "conversation"}\n'
+    '- "What tissues do you support?" -> {"type": "conversation"}\n'
+    '- "Tell me about AAV" -> {"type": "conversation"}\n'
+    '- "Can you design something?" -> {"type": "conversation"}\n'
+    '- "What do these results mean?" -> {"type": "conversation"}\n'
+    '- "How can I use this enhancer?" -> {"type": "conversation"}\n'
+    '- "Design a liver enhancer" -> {"type": "design", ...}\n'
+    '- "I need a cardiac-specific regulatory element" -> {"type": "design", ...}\n'
+    '- "Generate neural enhancers for AAV delivery" -> {"type": "design", ...}'
+)
+
+_CONVERSATION_SYSTEM = (
+    "You are CassetteAI, a gene therapy design tool that generates "
+    "synthetic regulatory DNA elements (enhancers) optimized for "
+    "tissue-specific expression. You support liver, cardiac, neural, "
+    "and blood tissues. You use DNA-Diffusion for generation and Sei "
+    "for scoring tissue specificity.\n\n"
+    "Respond to the user's conversational message in 2-4 sentences. "
+    "Be friendly and informative. Do not use emojis or markdown. "
+    "Reference conversation history when answering follow-up questions "
+    "about previous results or designs."
+)
+
+
+async def _classify_and_parse(
+    user_prompt: str,
+    history: list[dict[str, str]] | None = None,
+) -> dict[str, Any]:
     """Classify user message as conversation or design request via Claude Sonnet.
 
     Returns either:
-        {"type": "conversation", "response": str}
+        {"type": "conversation"}
         {"type": "design", "target_tissue": str, "length_bp": int, "constraints": [str]}
 
     Falls back to design with liver defaults if JSON parsing fails.
     """
     client = get_anthropic_client()
-    logger.info("Claude Opus received message: %s", user_prompt)
+    logger.info("Classifying message: %s", user_prompt)
+
+    messages = _build_messages(user_prompt, history)
+
     response = await client.messages.create(
-        model="claude-opus-4-20250514",
-        max_tokens=512,
-        system=(
-            "You are CassetteAI, a gene therapy design tool that generates "
-            "synthetic regulatory DNA elements (enhancers) optimized for "
-            "tissue-specific expression. You support liver, cardiac, neural, "
-            "and blood tissues. You use DNA-Diffusion for generation and Sei "
-            "for scoring tissue specificity.\n\n"
-            "Classify the user's message as either a design request or a "
-            "conversational message. Return ONLY a raw JSON object (no "
-            "markdown fences).\n\n"
-            "If the message is a design request (specifies a tissue or element "
-            "to design), return:\n"
-            '  {"type": "design", "target_tissue": "<tissue>", '
-            '"length_bp": <int, default 200>, "constraints": [<strings>]}\n\n'
-            "If the message is conversational (greeting, question about "
-            "capabilities, general biology question, or anything that is not "
-            "a concrete design request), return:\n"
-            '  {"type": "conversation", "response": "<2-4 sentence friendly '
-            "reply; no emoji, no markdown; may suggest trying a design "
-            'request>"}\n\n'
-            "Examples:\n"
-            '- "Hello" -> conversation\n'
-            '- "What do you do?" -> conversation\n'
-            '- "What tissues do you support?" -> conversation\n'
-            '- "Tell me about AAV" -> conversation\n'
-            '- "Can you design something?" -> conversation (no tissue specified)\n'
-            '- "Design a liver enhancer" -> design\n'
-            '- "I need a cardiac-specific regulatory element" -> design\n'
-            '- "Generate neural enhancers for AAV delivery" -> design'
-        ),
-        messages=[{"role": "user", "content": user_prompt}],
+        model="claude-sonnet-4-20250514",
+        max_tokens=100,
+        system=_CLASSIFY_SYSTEM,
+        messages=messages,
     )
     raw = response.content[0].text.strip()
     try:
@@ -179,6 +235,38 @@ async def _classify_and_parse(user_prompt: str) -> dict[str, Any]:
             except json.JSONDecodeError:
                 pass
     return {"type": "design", "target_tissue": "liver", "length_bp": 200, "constraints": []}
+
+
+async def _stream_conversation(
+    user_prompt: str,
+    history: list[dict[str, str]] | None = None,
+) -> AsyncGenerator[dict[str, Any], None]:
+    """Stream a conversational response token-by-token via Claude Opus.
+
+    Yields:
+        {"type": "stream_start", "stage": "conversation"}
+        {"type": "stream_delta", "delta": str}   (one per chunk)
+        {"type": "stream_end",   "stage": "conversation"}
+    """
+    client = get_anthropic_client()
+    messages = _build_messages(user_prompt, history)
+
+    yield {"type": "stream_start", "stage": "conversation"}
+    try:
+        async with client.messages.stream(
+            model="claude-sonnet-4-20250514",
+            max_tokens=512,
+            system=_CONVERSATION_SYSTEM,
+            messages=messages,
+        ) as stream:
+            async for text in stream.text_stream:
+                yield {"type": "stream_delta", "delta": text}
+    except Exception as exc:
+        logger.error("Conversation stream failed: %s", exc)
+        yield {"type": "stream_end", "stage": "conversation"}
+        yield {"type": "error", "message": f"Conversation stream failed: {exc}"}
+        return
+    yield {"type": "stream_end", "stage": "conversation"}
 
 
 async def _paraphrase_request(
@@ -224,6 +312,8 @@ async def _paraphrase_request(
 
 async def run_pipeline(
     user_prompt: str,
+    *,
+    history: list[dict[str, str]] | None = None,
 ) -> AsyncGenerator[dict[str, Any], None]:
     """Run the full CassetteAI pipeline and yield SSE-compatible event dicts.
 
@@ -238,10 +328,11 @@ async def run_pipeline(
     On error the generator yields the error event then stops.
     """
     # ── Step 1: Classify and route ─────────────────────────────────────────
-    result = await _classify_and_parse(user_prompt)
+    result = await _classify_and_parse(user_prompt, history=history)
 
     if result.get("type") == "conversation":
-        yield {"type": "message", "stage": "conversation", "message": result.get("response", "")}
+        async for event in _stream_conversation(user_prompt, history=history):
+            yield event
         return
 
     # ── Design path ──────────────────────────────────────────────────────
@@ -267,7 +358,7 @@ async def run_pipeline(
     constraint_note = f" Constraints: {', '.join(constraints)}." if constraints else ""
     plan_text = (
         f"I'll design {length_bp} bp {tissue}-specific enhancers by generating "
-        f"300 candidates with DNA-Diffusion (conditioned on {cell_type}), "
+        f"{N_SAMPLES} candidates with DNA-Diffusion (conditioned on {cell_type}), "
         f"then scoring each one with Sei across 40 regulatory tissue classes "
         f"to find the most tissue-specific element.{constraint_note}"
     )
@@ -288,15 +379,15 @@ async def run_pipeline(
 
     sequences: list[str]
     if cached_gen:
-        sequences = cached_gen["sequences"]
+        sequences = cached_gen["sequences"][:N_SAMPLES]
     else:
         try:
             import modal  # type: ignore[import]
 
             generate_fn = modal.Function.from_name("dna-diffusion", "generate_elements")
             logger.debug("── DNA-Diffusion INPUT ──")
-            logger.debug("  cell_type=%s  n_samples=300", cell_type)
-            sequences = await asyncio.to_thread(generate_fn.remote, cell_type, 300)
+            logger.debug("  cell_type=%s  n_samples=%d", cell_type, N_SAMPLES)
+            sequences = await asyncio.to_thread(generate_fn.remote, cell_type, N_SAMPLES)
         except Exception as exc:
             yield {
                 "type": "error",
@@ -328,7 +419,7 @@ async def run_pipeline(
 
     scored: list[dict]
     if cached_score:
-        scored = cached_score
+        scored = cached_score[:N_SAMPLES]
     else:
         try:
             import modal  # type: ignore[import]
