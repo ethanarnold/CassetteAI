@@ -6,10 +6,13 @@ interpretation and cassette composition.
 """
 
 import json
+import logging
 import os
 import re
 from pathlib import Path
 from typing import Any
+
+logger = logging.getLogger("cassetteai.interpret")
 
 # ---------------------------------------------------------------------------
 # Lazy Anthropic client (avoids import-time API key requirement)
@@ -337,6 +340,7 @@ async def interpret_scores(
         f"- Key scores: {json.dumps(trimmed_scores)}\n"
     )
 
+    logger.info("Claude Opus received message: %s", user_content[:200])
     full_response = ""
     async with client.messages.stream(
         model="claude-opus-4-6",
