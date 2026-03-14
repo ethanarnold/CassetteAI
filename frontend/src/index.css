@@ -67,6 +67,17 @@ html, body {
   to   { opacity: 1; transform: translateY(0); }
 }
 
+/* ── Cascading pill fade-in ── */
+@keyframes pillFadeUp {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.pill-cascade {
+  opacity: 0;
+  animation: pillFadeUp 400ms ease-out forwards;
+}
+
 .fade-in {
   animation: fadeIn 400ms ease-out;
 }

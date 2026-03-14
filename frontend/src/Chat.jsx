@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
+import { LightBulbIcon, AcademicCapIcon, PencilIcon, XMarkIcon, ArrowUpIcon } from '@heroicons/react/24/outline'
 import Lottie from 'lottie-react'
 import { sendChatMessage } from './api.js'
 import dnaHelixAnimation from './assets/dna-helix.json'
@@ -219,17 +220,38 @@ function AssistantBubble({ content, isError }) {
 
 export default function Chat({ onResults, hasStarted, onStart, messages, setMessages, loading, setLoading }) {
   const [input, setInput] = useState('')
+  const [expandedPill, setExpandedPill] = useState(null)
+  const [hoverPlaceholder, setHoverPlaceholder] = useState(null)
+  const [cascadeKey, setCascadeKey] = useState(0)
   const bottomRef = useRef(null)
   const inputRef = useRef(null)
   const streamingRef = useRef({ active: false, text: '' })
   const rafRef = useRef(null)
   const logoLottieRef = useRef(null)
+  const wasTypingRef = useRef(false)
   const { enqueue, addDirect, isIdle, flush } = useMessageQueue(setMessages)
 
   // Auto-scroll
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
+
+  // Reset expanded pill after fade-out when user types
+  useEffect(() => {
+    if (input.trim()) {
+      const t = setTimeout(() => { setExpandedPill(null); setHoverPlaceholder(null) }, 200)
+      return () => clearTimeout(t)
+    }
+  }, [input])
+
+  // Replay pill cascade animation when input is cleared
+  useEffect(() => {
+    const typing = input.trim().length > 0
+    if (wasTypingRef.current && !typing) {
+      setCascadeKey((k) => k + 1)
+    }
+    wasTypingRef.current = typing
+  }, [input])
 
   const handleSubmit = useCallback(
     async (e) => {
@@ -337,15 +359,15 @@ export default function Chat({ onResults, hasStarted, onStart, messages, setMess
             animationData={dnaHelixThickAnimation}
             loop={false}
             autoplay={false}
-            style={{ width: 56, height: 56, cursor: 'pointer' }}
+            style={{ width: 68, height: 68, cursor: 'pointer' }}
             onMouseEnter={() => logoLottieRef.current?.play()}
             onMouseLeave={() => logoLottieRef.current?.stop()}
           />
           <h1
             style={{
               fontSize: 60,
-              fontWeight: 900,
-              color: '#000000',
+              fontWeight: 500,
+              color: '#333333',
               letterSpacing: '0.04em',
               margin: 0,
             }}
@@ -358,52 +380,227 @@ export default function Chat({ onResults, hasStarted, onStart, messages, setMess
         <form onSubmit={handleSubmit}>
           <div
             style={{
-              display: 'flex',
-              gap: 8,
-              padding: '10px 10px 10px 24px',
-              alignItems: 'center',
+              position: 'relative',
+              padding: '10px 15px',
               background: '#f0f0f0',
-              borderRadius: 9999,
-              border: 'none',
+              borderRadius: 16,
+              border: '1px solid #e0e0e0',
             }}
           >
-            <input
+            <textarea
               ref={inputRef}
-              type="text"
+              rows={2}
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
               disabled={loading}
-              placeholder="Design a liver-specific enhancer for AAV delivery..."
+              placeholder={hoverPlaceholder || 'How can I help you today?'}
               style={{
-                flex: 1,
+                width: '100%',
                 background: 'transparent',
                 border: 'none',
                 outline: 'none',
-                fontSize: 18,
+                fontSize: 16,
                 color: '#1a1a1a',
-                padding: '10px 0',
+                padding: '5px 0',
+                paddingRight: 48,
+                resize: 'none',
+                boxSizing: 'border-box',
               }}
             />
             <button
               type="submit"
               disabled={loading || !input.trim()}
               style={{
-                background: loading || !input.trim() ? '#d4d4d4' : '#333333',
+                position: 'absolute',
+                right: 12,
+                bottom: 12,
+                background: loading || !input.trim() ? '#d4d4d4' : '#002FA7',
                 color: loading || !input.trim() ? '#9ca3af' : '#ffffff',
                 border: 'none',
-                borderRadius: 9999,
-                padding: '12px 24px',
-                fontSize: 17,
-                fontWeight: 600,
+                borderRadius: 10,
+                width: 32,
+                height: 32,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                padding: 0,
                 cursor: loading || !input.trim() ? 'not-allowed' : 'pointer',
                 transition: 'all 200ms ease',
               }}
             >
-              {loading ? '...' : 'Send'}
+              {loading ? '...' : <ArrowUpIcon style={{ width: 18, height: 18 }} />}
             </button>
           </div>
         </form>
+        {!loading && (() => {
+          const isTyping = input.trim().length > 0
+          const suggestions = {
+            Explain: [
+              'What do you do?',
+              'How are you different from a regular LLM?',
+              'Who are your target users?',
+            ],
+            Learn: [
+              'What are DNA cassettes?',
+              "What's tissue specificity?",
+              'What are enhancers?',
+            ],
+            Design: [
+              'Design an enhancer for white blood cells.',
+              'Generate a liver-specific enhancer.',
+              'Create a cassette that targets epithelial tissue.',
+            ],
+          }
+          const previewPrompts = {
+            'What do you do?':
+              "Hi CassetteAI! I'm wondering what you do. What's your target use case, and what problems do you solve?",
+            'How are you different from a regular LLM?':
+              "How is CassetteAI different from just asking ChatGPT about genomics? What can you do that a regular LLM can't?",
+            'Who are your target users?':
+              'Who is CassetteAI built for? What kind of researchers or teams would benefit most from using it?',
+            'What are DNA cassettes?':
+              'Can you explain what a DNA cassette is and why it matters for gene therapy and synthetic biology?',
+            "What's tissue specificity?":
+              "What does tissue specificity mean in the context of gene regulation, and why is it important for therapeutic design?",
+            'What are enhancers?':
+              'What are enhancer sequences in the genome, and how do they control when and where genes are expressed?',
+            'Design an enhancer for white blood cells.':
+              'Design a synthetic enhancer sequence optimized for activity in white blood cells (leukocytes/hematopoietic lineage).',
+            'Generate a liver-specific enhancer.':
+              'Generate a novel enhancer sequence with strong predicted activity in hepatocytes / liver tissue.',
+            'Create a cassette that targets epithelial tissue.':
+              'Create a gene-regulatory cassette designed to drive expression specifically in epithelial tissue.',
+          }
+          const pillIcons = {
+            Explain: LightBulbIcon,
+            Learn: AcademicCapIcon,
+            Design: PencilIcon,
+          }
+          const pills = Object.keys(suggestions)
+
+          const submitPrompt = (text) => {
+            setExpandedPill(null)
+            setHoverPlaceholder(null)
+            setInput(previewPrompts[text] || text)
+            setTimeout(() => {
+              const form = document.querySelector('form')
+              if (form) form.requestSubmit()
+            }, 0)
+          }
+
+          return (
+            <div style={{ display: 'flex', justifyContent: 'center', marginTop: 16, position: 'relative', opacity: isTyping ? 0 : 1, pointerEvents: isTyping ? 'none' : 'auto', transition: 'opacity 200ms ease' }}>
+              {/* Always render pills to maintain stable height */}
+              <div key={cascadeKey} style={{ display: 'flex', gap: 10, opacity: expandedPill ? 0 : 1, transition: 'opacity 350ms ease' }}>
+                {pills.map((label, idx) => {
+                  const Icon = pillIcons[label]
+                  return (
+                    <button
+                      key={label}
+                      className="pill-cascade"
+                      onClick={() => setExpandedPill(label)}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 6,
+                        background: '#f0f0f0',
+                        border: '1px solid #e0e0e0',
+                        borderRadius: 16,
+                        padding: '8px 18px',
+                        fontSize: 14,
+                        fontWeight: 400,
+                        color: '#555',
+                        cursor: 'pointer',
+                        transition: 'all 150ms ease',
+                        animationDelay: `${idx * 120}ms`,
+                      }}
+                      onMouseEnter={(e) => (e.currentTarget.style.background = '#e5e5e5')}
+                      onMouseLeave={(e) => (e.currentTarget.style.background = '#f0f0f0')}
+                    >
+                      <Icon style={{ width: 16, height: 16 }} />
+                      {label}
+                    </button>
+                  )
+                })}
+              </div>
+              {expandedPill && (
+                <div
+                  style={{
+                    position: 'absolute',
+                    top: 0,
+                    width: '90%',
+                    background: '#f0f0f0',
+                    border: '1px solid #e0e0e0',
+                    borderRadius: 16,
+                    padding: '8px 6px',
+                    animation: 'fadeIn 150ms ease-out',
+                    zIndex: 10,
+                  }}
+                >
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      padding: '8px 12px 8px',
+                    }}
+                  >
+                    <span style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 14, fontWeight: 500, color: '#555' }}>
+                      {(() => { const Icon = pillIcons[expandedPill]; return Icon ? <Icon style={{ width: 16, height: 16 }} /> : null })()}
+                      {expandedPill}
+                    </span>
+                    <button
+                      onClick={() => { setExpandedPill(null); setHoverPlaceholder(null) }}
+                      style={{
+                        background: 'none',
+                        border: 'none',
+                        fontSize: 18,
+                        color: '#999',
+                        cursor: 'pointer',
+                        padding: '0 0',
+                        lineHeight: 1,
+                      }}
+                    >
+                      <XMarkIcon style={{ width: 21, height: 21 }} />
+                    </button>
+                  </div>
+                  {suggestions[expandedPill].map((prompt) => (
+                    <button
+                      key={prompt}
+                      onClick={() => submitPrompt(prompt)}
+                      style={{
+                        display: 'block',
+                        width: '100%',
+                        textAlign: 'left',
+                        background: 'transparent',
+                        border: 'none',
+                        padding: '10px 12px',
+                        margin: 0,
+                        borderRadius: 8,
+                        fontSize: 14,
+                        color: '#555',
+                        cursor: 'pointer',
+                        transition: 'background 150ms ease',
+                        boxSizing: 'border-box',
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.background = '#e5e5e5'
+                        setHoverPlaceholder(previewPrompts[prompt] || prompt)
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.background = 'transparent'
+                        setHoverPlaceholder(null)
+                      }}
+                    >
+                      {prompt}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )
+        })()}
       </div>
     )
   }
@@ -448,49 +645,56 @@ export default function Chat({ onResults, hasStarted, onStart, messages, setMess
       <form onSubmit={handleSubmit} style={{ padding: 16 }}>
         <div
           style={{
-            display: 'flex',
-            gap: 8,
-            padding: '6px 6px 6px 20px',
-            alignItems: 'center',
+            position: 'relative',
+            padding: '6px 10px',
             background: '#f0f0f0',
-            borderRadius: 9999,
-            border: 'none',
+            borderRadius: 16,
+            border: '1px solid #e0e0e0',
           }}
         >
-          <input
+          <textarea
             ref={inputRef}
-            type="text"
+            rows={2}
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
             disabled={loading}
             placeholder="Ask a follow-up or start a new design..."
             style={{
-              flex: 1,
+              width: '100%',
               background: 'transparent',
               border: 'none',
               outline: 'none',
-              fontSize: 14,
+              fontSize: 12,
               color: '#1a1a1a',
-              padding: '8px 0',
+              padding: '4px 0',
+              paddingRight: 40,
+              resize: 'none',
+              boxSizing: 'border-box',
             }}
           />
           <button
             type="submit"
             disabled={loading || !input.trim()}
             style={{
-              background: loading || !input.trim() ? '#d4d4d4' : '#333333',
+              position: 'absolute',
+              right: 12,
+              bottom: 12,
+              background: loading || !input.trim() ? '#d4d4d4' : '#002FA7',
               color: loading || !input.trim() ? '#9ca3af' : '#ffffff',
               border: 'none',
-              borderRadius: 9999,
-              padding: '8px 18px',
-              fontSize: 14,
-              fontWeight: 600,
+              borderRadius: 10,
+              width: 28,
+              height: 28,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: 0,
               cursor: loading || !input.trim() ? 'not-allowed' : 'pointer',
               transition: 'all 200ms ease',
             }}
           >
-            {loading ? '...' : 'Send'}
+            {loading ? '...' : <ArrowUpIcon style={{ width: 16, height: 16 }} />}
           </button>
         </div>
       </form>
