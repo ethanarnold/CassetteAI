@@ -2,6 +2,7 @@ import { useState, useRef, useEffect, useCallback } from 'react'
 import Lottie from 'lottie-react'
 import { sendChatMessage } from './api.js'
 import dnaHelixAnimation from './assets/dna-helix.json'
+import dnaHelixThickAnimation from './assets/dna-helix-thick.json'
 
 // ---------------------------------------------------------------------------
 // Dwell times (ms) — minimum display time before revealing the next item.
@@ -121,19 +122,18 @@ function DnaSpinner({ static: isStatic } = {}) {
   )
 }
 
-function ThoughtBubble({ message, isActive }) {
+function ThoughtBubble({ message, resolvedMessage, isActive }) {
   return (
     <div className="flex justify-start">
       <div
-        className="thought-line text-sm whitespace-pre-wrap flex items-start"
+        className={`thought-line text-sm whitespace-pre-wrap flex items-start${isActive ? ' thought-shimmer' : ''}`}
         style={{
           color: '#6b7280',
           maxWidth: '90%',
           lineHeight: 1.6,
         }}
       >
-        <span>{message}</span>
-        {isActive && <span className="inline-spinner" style={{ marginTop: 5 }} />}
+        <span>{isActive ? message : (resolvedMessage || message)}</span>
       </div>
     </div>
   )
@@ -173,9 +173,6 @@ function StreamingBubble({ message }) {
         }}
       >
         {message}
-        <div style={{ marginTop: 4 }}>
-          <DnaSpinner />
-        </div>
       </div>
     </div>
   )
@@ -220,13 +217,13 @@ function AssistantBubble({ content, isError }) {
 // Chat
 // ---------------------------------------------------------------------------
 
-export default function Chat({ onResults, hasStarted, onStart, messages, setMessages }) {
+export default function Chat({ onResults, hasStarted, onStart, messages, setMessages, loading, setLoading }) {
   const [input, setInput] = useState('')
-  const [loading, setLoading] = useState(false)
   const bottomRef = useRef(null)
   const inputRef = useRef(null)
   const streamingRef = useRef({ active: false, text: '' })
   const rafRef = useRef(null)
+  const logoLottieRef = useRef(null)
   const { enqueue, addDirect, isIdle, flush } = useMessageQueue(setMessages)
 
   // Auto-scroll
@@ -293,7 +290,7 @@ export default function Chat({ onResults, hasStarted, onStart, messages, setMess
               return prev
             })
           } else if (event.type === 'thought') {
-            enqueue({ type: 'thought', stage: event.stage, message: event.message, resolved: false })
+            enqueue({ type: 'thought', stage: event.stage, message: event.message, resolvedMessage: event.resolvedMessage, resolved: false })
           } else if (event.type === 'message') {
             enqueue({ type: 'message', stage: event.stage, message: event.message })
           } else if (event.type === 'results') {
@@ -334,18 +331,28 @@ export default function Chat({ onResults, hasStarted, onStart, messages, setMess
   if (!hasStarted) {
     return (
       <div style={{ width: '100%', maxWidth: 696 }}>
-        <h1
-          style={{
-            fontSize: 60,
-            fontWeight: 900,
-            color: '#000000',
-            letterSpacing: '0.04em',
-            marginBottom: 8,
-            textAlign: 'center',
-          }}
-        >
-          CassetteAI
-        </h1>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12, marginBottom: 8 }}>
+          <Lottie
+            lottieRef={logoLottieRef}
+            animationData={dnaHelixThickAnimation}
+            loop={false}
+            autoplay={false}
+            style={{ width: 56, height: 56, cursor: 'pointer' }}
+            onMouseEnter={() => logoLottieRef.current?.play()}
+            onMouseLeave={() => logoLottieRef.current?.stop()}
+          />
+          <h1
+            style={{
+              fontSize: 60,
+              fontWeight: 900,
+              color: '#000000',
+              letterSpacing: '0.04em',
+              margin: 0,
+            }}
+          >
+            CassetteAI
+          </h1>
+        </div>
         <div style={{ marginBottom: 32 }} />
 
         <form onSubmit={handleSubmit}>
@@ -413,6 +420,7 @@ export default function Chat({ onResults, hasStarted, onStart, messages, setMess
               <ThoughtBubble
                 key={i}
                 message={msg.message}
+                resolvedMessage={msg.resolvedMessage}
                 isActive={!msg.resolved}
               />
             )
@@ -427,7 +435,7 @@ export default function Chat({ onResults, hasStarted, onStart, messages, setMess
           return null
         })}
 
-        {loading && !messages.some(m => m.type === 'streaming') && (
+        {loading && (
           <div className="flex justify-start">
             <DnaSpinner />
           </div>

@@ -7,6 +7,7 @@ export default function App() {
   const [results, setResults] = useState(null)
   const [hasStarted, setHasStarted] = useState(false)
   const [messages, setMessages] = useState([])
+  const [loading, setLoading] = useState(false)
   const handleResults = useCallback((data) => setResults(data), [])
   const handleStart = useCallback(() => setHasStarted(true), [])
 
@@ -57,6 +58,8 @@ export default function App() {
             onStart={handleStart}
             messages={messages}
             setMessages={setMessages}
+            loading={loading}
+            setLoading={setLoading}
           />
         </div>
       </div>
@@ -149,6 +152,8 @@ export default function App() {
             onStart={handleStart}
             messages={messages}
             setMessages={setMessages}
+            loading={loading}
+            setLoading={setLoading}
           />
         </div>
 
