@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { LightBulbIcon, AcademicCapIcon, PencilIcon, XMarkIcon, ArrowUpIcon } from '@heroicons/react/24/outline'
+import { StopIcon } from '@heroicons/react/24/solid'
 import Lottie from 'lottie-react'
 import { sendChatMessage } from './api.js'
 import dnaHelixAnimation from './assets/dna-helix.json'
@@ -227,6 +228,7 @@ export default function Chat({ onResults, hasStarted, onStart, messages, setMess
   const inputRef = useRef(null)
   const streamingRef = useRef({ active: false, text: '' })
   const rafRef = useRef(null)
+  const abortRef = useRef(null)
   const logoLottieRef = useRef(null)
   const wasTypingRef = useRef(false)
   const { enqueue, addDirect, isIdle, flush } = useMessageQueue(setMessages)
@@ -253,6 +255,28 @@ export default function Chat({ onResults, hasStarted, onStart, messages, setMess
     wasTypingRef.current = typing
   }, [input])
 
+  const handleStop = useCallback(() => {
+    abortRef.current?.abort()
+    if (rafRef.current) {
+      cancelAnimationFrame(rafRef.current)
+      rafRef.current = null
+    }
+    // Finalize any in-progress streaming message
+    if (streamingRef.current.active) {
+      const finalText = streamingRef.current.text
+      streamingRef.current = { active: false, text: '' }
+      setMessages((prev) => {
+        const last = prev[prev.length - 1]
+        if (last && last.type === 'streaming') {
+          return [...prev.slice(0, -1), { type: 'message', stage: 'conversation', message: finalText }]
+        }
+        return prev
+      })
+    }
+    flush()
+    setLoading(false)
+  }, [flush, setMessages, setLoading])
+
   const handleSubmit = useCallback(
     async (e) => {
       e.preventDefault()
@@ -263,6 +287,9 @@ export default function Chat({ onResults, hasStarted, onStart, messages, setMess
 
       setInput('')
       setLoading(true)
+
+      const controller = new AbortController()
+      abortRef.current = controller
 
       // User message — immediate display
       addDirect({ type: 'user', content: prompt })
@@ -276,7 +303,8 @@ export default function Chat({ onResults, hasStarted, onStart, messages, setMess
         }))
 
       try {
-        for await (const event of sendChatMessage(prompt, history)) {
+        for await (const event of sendChatMessage(prompt, history, controller.signal)) {
+          if (controller.signal.aborted) break
           if (event.type === 'stream_start') {
             flush()
             streamingRef.current = { active: true, text: '' }
@@ -324,6 +352,10 @@ export default function Chat({ onResults, hasStarted, onStart, messages, setMess
           }
         }
       } catch (err) {
+        if (err.name === 'AbortError') {
+          // User clicked stop — handled by handleStop, no error to show
+          return
+        }
         flush()
         addDirect({ type: 'error', content: err.message })
       }
@@ -381,7 +413,7 @@ export default function Chat({ onResults, hasStarted, onStart, messages, setMess
           <div
             style={{
               position: 'relative',
-              padding: '10px 15px',
+              padding: '10px 15px 6px',
               background: '#f0f0f0',
               borderRadius: 16,
               border: '1px solid #e0e0e0',
@@ -408,29 +440,54 @@ export default function Chat({ onResults, hasStarted, onStart, messages, setMess
                 boxSizing: 'border-box',
               }}
             />
-            <button
-              type="submit"
-              disabled={loading || !input.trim()}
-              style={{
-                position: 'absolute',
-                right: 12,
-                bottom: 12,
-                background: loading || !input.trim() ? '#d4d4d4' : '#002FA7',
-                color: loading || !input.trim() ? '#9ca3af' : '#ffffff',
-                border: 'none',
-                borderRadius: 10,
-                width: 32,
-                height: 32,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                padding: 0,
-                cursor: loading || !input.trim() ? 'not-allowed' : 'pointer',
-                transition: 'all 200ms ease',
-              }}
-            >
-              {loading ? '...' : <ArrowUpIcon style={{ width: 18, height: 18 }} />}
-            </button>
+            {loading ? (
+              <button
+                type="button"
+                onClick={handleStop}
+                style={{
+                  position: 'absolute',
+                  right: 12,
+                  bottom: 12,
+                  background: '#ffffff',
+                  border: '1px solid #d4d4d4',
+                  borderRadius: 10,
+                  width: 32,
+                  height: 32,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  padding: 0,
+                  cursor: 'pointer',
+                  transition: 'all 200ms ease',
+                }}
+              >
+                <StopIcon style={{ width: 14, height: 14, color: '#1a1a1a' }} />
+              </button>
+            ) : (
+              <button
+                type="submit"
+                disabled={!input.trim()}
+                style={{
+                  position: 'absolute',
+                  right: 12,
+                  bottom: 12,
+                  background: !input.trim() ? '#d4d4d4' : '#002FA7',
+                  color: !input.trim() ? '#9ca3af' : '#ffffff',
+                  border: 'none',
+                  borderRadius: 10,
+                  width: 32,
+                  height: 32,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  padding: 0,
+                  cursor: !input.trim() ? 'not-allowed' : 'pointer',
+                  transition: 'all 200ms ease',
+                }}
+              >
+                <ArrowUpIcon style={{ width: 18, height: 18 }} />
+              </button>
+            )}
           </div>
         </form>
         {!loading && (() => {
@@ -638,6 +695,12 @@ export default function Chat({ onResults, hasStarted, onStart, messages, setMess
           </div>
         )}
 
+        {!loading && messages.length > 0 && messages[messages.length - 1]?.type !== 'message' && (
+          <div className="flex justify-start">
+            <DnaSpinner static />
+          </div>
+        )}
+
         <div ref={bottomRef} />
       </div>
 
@@ -665,7 +728,7 @@ export default function Chat({ onResults, hasStarted, onStart, messages, setMess
               background: 'transparent',
               border: 'none',
               outline: 'none',
-              fontSize: 12,
+              fontSize: 14,
               color: '#1a1a1a',
               padding: '4px 0',
               paddingRight: 40,
@@ -673,29 +736,54 @@ export default function Chat({ onResults, hasStarted, onStart, messages, setMess
               boxSizing: 'border-box',
             }}
           />
-          <button
-            type="submit"
-            disabled={loading || !input.trim()}
-            style={{
-              position: 'absolute',
-              right: 12,
-              bottom: 12,
-              background: loading || !input.trim() ? '#d4d4d4' : '#002FA7',
-              color: loading || !input.trim() ? '#9ca3af' : '#ffffff',
-              border: 'none',
-              borderRadius: 10,
-              width: 28,
-              height: 28,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              padding: 0,
-              cursor: loading || !input.trim() ? 'not-allowed' : 'pointer',
-              transition: 'all 200ms ease',
-            }}
-          >
-            {loading ? '...' : <ArrowUpIcon style={{ width: 16, height: 16 }} />}
-          </button>
+          {loading ? (
+            <button
+              type="button"
+              onClick={handleStop}
+              style={{
+                position: 'absolute',
+                right: 12,
+                bottom: 12,
+                background: '#ffffff',
+                border: '1px solid #d4d4d4',
+                borderRadius: 10,
+                width: 28,
+                height: 28,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                padding: 0,
+                cursor: 'pointer',
+                transition: 'all 200ms ease',
+              }}
+            >
+              <StopIcon style={{ width: 12, height: 12, color: '#1a1a1a' }} />
+            </button>
+          ) : (
+            <button
+              type="submit"
+              disabled={!input.trim()}
+              style={{
+                position: 'absolute',
+                right: 12,
+                bottom: 12,
+                background: !input.trim() ? '#d4d4d4' : '#002FA7',
+                color: !input.trim() ? '#9ca3af' : '#ffffff',
+                border: 'none',
+                borderRadius: 10,
+                width: 28,
+                height: 28,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                padding: 0,
+                cursor: !input.trim() ? 'not-allowed' : 'pointer',
+                transition: 'all 200ms ease',
+              }}
+            >
+              <ArrowUpIcon style={{ width: 16, height: 16 }} />
+            </button>
+          )}
         </div>
       </form>
     </div>

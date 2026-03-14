@@ -7,15 +7,17 @@
  *   { type: "results", data: { generation, scoring, interpretation, cassette } }
  *   { type: "error",  message: string }
  */
-export async function* sendChatMessage(prompt, history = []) {
+export async function* sendChatMessage(prompt, history = [], signal) {
   let response;
   try {
     response = await fetch('/api/chat', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ prompt, history }),
+      signal,
     });
   } catch (err) {
+    if (err.name === 'AbortError') throw err;
     yield {
       type: 'error',
       message: `Connection failed: ${err.message}. Is the backend running on port 8000?`,

@@ -36,7 +36,7 @@ export default function App() {
             opacity: 1,
           }}
         >
-          <span style={{ fontSize: 14, fontWeight: 600, color: '#000000' }}>
+          <span style={{ fontSize: 14, fontWeight: 500, color: '#333333' }}>
             CassetteAI
           </span>
         </div>
@@ -99,7 +99,7 @@ export default function App() {
             style={{
               fontSize: 24,
               fontWeight: 900,
-              color: '#000000',
+              color: '#333333',
               letterSpacing: '0.07em',
               lineHeight: 1.1,
               margin: 0,
@@ -107,8 +107,8 @@ export default function App() {
           >
             CassetteAI
           </h1>
-          <p style={{ fontSize: 14, color: '#94a3b8', margin: 0 }}>
-            AI-Powered Gene Therapy Cassette Design
+          <p style={{ fontSize: 14, color: '#9ca3af', margin: 0 }}>
+            AI-Powered DNA Cassette Design
           </p>
         </div>
 
@@ -118,17 +118,17 @@ export default function App() {
             display: 'flex',
             alignItems: 'center',
             gap: 12,
-            fontSize: 11,
-            color: '#94a3b8',
+            fontSize: 14,
+            color: '#9ca3af',
           }}
         >
-          <span>Claude</span>
+          <a href="https://claude.ai" target="_blank" rel="noopener noreferrer" style={{ color: 'inherit', textDecoration: 'none' }}>Claude</a>
           <span style={{ color: '#d4d4d4' }}>·</span>
-          <span>Modal</span>
+          <a href="https://modal.com" target="_blank" rel="noopener noreferrer" style={{ color: 'inherit', textDecoration: 'none' }}>Modal</a>
           <span style={{ color: '#d4d4d4' }}>·</span>
-          <span>DNA-Diffusion</span>
+          <a href="https://github.com/pinellolab/DNA-Diffusion" target="_blank" rel="noopener noreferrer" style={{ color: 'inherit', textDecoration: 'none' }}>DNA-Diffusion</a>
           <span style={{ color: '#d4d4d4' }}>·</span>
-          <span>Sei</span>
+          <a href="https://github.com/FunctionLab/sei-framework" target="_blank" rel="noopener noreferrer" style={{ color: 'inherit', textDecoration: 'none' }}>Sei</a>
         </div>
       </header>
 
