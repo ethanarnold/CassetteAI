@@ -31,4 +31,6 @@ Write a **2–3 sentence scientific recommendation** for this candidate, as you 
 
 Write your response as **plain text** (no JSON, no markdown fences, no bullet points). It should be 2–3 sentences that a gene therapy scientist can read directly. The first 1–2 sentences should cover the scientific recommendation (tissue specificity, regulatory logic, caveats). The final sentence should be a plain-language summary suitable for a non-computational biologist.
 
+End your response with: "Feel free to ask if you'd like me to clarify any of these findings."
+
 Be precise. Do not fabricate scores or invent biological properties not reflected in the Sei output.

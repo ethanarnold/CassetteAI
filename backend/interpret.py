@@ -1,7 +1,7 @@
 """Biological interpretation of Sei scores for CassetteAI.
 
 Performs sequence pathology checks in Python, then sends annotated Sei scores
-to Claude Opus (claude-opus-4-6) via streaming for ranked biological
+to Claude Sonnet (claude-sonnet-4-20250514) via streaming for ranked biological
 interpretation and cassette composition.
 """
 
@@ -286,12 +286,12 @@ async def interpret_scores(
     sequences_with_scores: list[dict],
     target_tissue: str,
 ) -> dict[str, Any]:
-    """Re-rank candidates in Python, then get Claude Opus recommendation for top 1.
+    """Re-rank candidates in Python, then get Claude Sonnet recommendation for top 1.
 
     Steps:
         1. Python re-ranking via rerank_candidates() (pathology, specificity).
         2. Build ranking entry and cassette for top candidate.
-        3. Send only top 1's key scores to Claude Opus (max_tokens=1024) for
+        3. Send only top 1's key scores to Claude Sonnet (max_tokens=1024) for
            a focused 2-3 sentence scientific recommendation.
 
     Returns:
@@ -323,7 +323,7 @@ async def interpret_scores(
         "flags": top["flags"],
     }
 
-    # Step 3: Send only top 1 to Claude Opus for recommendation
+    # Step 3: Send only top 1 to Claude Sonnet for recommendation
     # Trim sei_scores to top 8 by value to keep token count low
     scores = top.get("sei_scores", {})
     top_keys = sorted(scores, key=lambda k: scores[k], reverse=True)[:8]
@@ -341,10 +341,10 @@ async def interpret_scores(
         f"- Key scores: {json.dumps(trimmed_scores)}\n"
     )
 
-    logger.info("Claude Opus received message: %s", user_content[:200])
+    logger.info("Claude Sonnet received message: %s", user_content[:200])
     full_response = ""
     async with client.messages.stream(
-        model="claude-opus-4-6",
+        model="claude-sonnet-4-20250514",
         max_tokens=1024,
         system=system_prompt,
         messages=[{"role": "user", "content": user_content}],
@@ -373,7 +373,7 @@ async def interpret_scores_streaming(
     target_tissue: str,
     result_out: dict[str, Any],
 ) -> AsyncGenerator[dict[str, Any], None]:
-    """Stream the Opus interpretation token-by-token, populating result_out.
+    """Stream the Sonnet interpretation token-by-token, populating result_out.
 
     Yields:
         {"type": "stream_start", "stage": "interpreting"}
@@ -426,14 +426,14 @@ async def interpret_scores_streaming(
         f"- Key scores: {json.dumps(trimmed_scores)}\n"
     )
 
-    logger.info("Claude Opus streaming: %s", user_content[:200])
+    logger.info("Claude Sonnet streaming: %s", user_content[:200])
 
     yield {"type": "stream_start", "stage": "interpreting"}
 
     full_response = ""
     try:
         async with client.messages.stream(
-            model="claude-opus-4-6",
+            model="claude-sonnet-4-20250514",
             max_tokens=1024,
             system=system_prompt,
             messages=[{"role": "user", "content": user_content}],
@@ -490,5 +490,5 @@ def _extract_json(text: str) -> dict[str, Any]:
 
     return {
         "raw_response": text,
-        "parse_error": "Could not extract JSON from Claude Opus response",
+        "parse_error": "Could not extract JSON from Claude Sonnet response",
     }

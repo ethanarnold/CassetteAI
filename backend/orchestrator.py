@@ -1,7 +1,7 @@
 """CassetteAI pipeline orchestrator.
 
 Parses user intent via Claude Sonnet, calls Modal GPU functions
-(DNA-Diffusion → Sei), interprets results via Claude Opus, and yields
+(DNA-Diffusion → Sei), interprets results via Claude Sonnet, and yields
 SSE-compatible status events as an async generator.
 """
 
@@ -85,13 +85,19 @@ def _normalize_tissue(raw: str) -> str:
 def _make_thought(stage: str, *, tissue: str = "") -> dict[str, Any]:
     """Return a thought event dict — short spinner text for a pipeline stage."""
     templates = {
-        "parsing": "I'll first confirm I understand your design request.",
-        "designing": f"Designing DNADiffusion inputs for {tissue}-specific enhancers.",
-        "generating": "DNADiffusion: Inference is running on Modal.",
-        "scoring": "Sei: Scoring tissue specificity across 40 tissue classes.",
-        "interpreting": "Analyzing results.",
+        "parsing": ("I'll first confirm I understand your design request.",
+                    "Confirmed your design request."),
+        "designing": (f"Designing DNADiffusion inputs for {tissue}-specific enhancers.",
+                      f"Designed DNADiffusion inputs for {tissue}-specific enhancers."),
+        "generating": ("Waiting for candidates from DNA-Diffusion.",
+                       "Received candidates from DNA-Diffusion."),
+        "scoring": ("Waiting for scores from Sei.",
+                    "Received scores from Sei."),
+        "interpreting": ("Analyzing results.",
+                         "Analyzed results."),
     }
-    return {"type": "thought", "stage": stage, "message": templates[stage]}
+    active, resolved = templates[stage]
+    return {"type": "thought", "stage": stage, "message": active, "resolvedMessage": resolved}
 
 
 def _make_message(
@@ -240,7 +246,7 @@ async def _stream_conversation(
     user_prompt: str,
     history: list[dict[str, str]] | None = None,
 ) -> AsyncGenerator[dict[str, Any], None]:
-    """Stream a conversational response token-by-token via Claude Opus.
+    """Stream a conversational response token-by-token via Claude Sonnet.
 
     Yields:
         {"type": "stream_start", "stage": "conversation"}
@@ -295,8 +301,10 @@ async def _stream_paraphrase(
             system=(
                 "You are a gene therapy design assistant. The user asked you to "
                 "design a synthetic regulatory element. Paraphrase their request "
-                "in 1-2 sentences, confirming the target tissue, element length, "
-                "and any special constraints. Be concise and conversational. "
+                "in 1-2 sentences, confirming the target tissue "
+                "and any special constraints. Only mention the element length if the "
+                "user explicitly mentioned a length or number of base pairs. "
+                "Be concise and conversational. "
                 "Do not use emojis. Do not use markdown formatting. "
                 "Speak in the first person (e.g. 'I understand you want...')."
             ),
@@ -305,8 +313,7 @@ async def _stream_paraphrase(
                     "role": "user",
                     "content": (
                         f"Original request: {user_prompt}\n\n"
-                        f"Parsed parameters: tissue={tissue}, "
-                        f"length={length_bp} bp.{constraint_note}"
+                        f"Parsed parameters: tissue={tissue}.{constraint_note}"
                     ),
                 }
             ],
@@ -374,7 +381,7 @@ async def run_pipeline(
 
     constraint_note = f" Constraints: {', '.join(constraints)}." if constraints else ""
     plan_text = (
-        f"I'll design {length_bp} bp {tissue}-specific enhancers by generating "
+        f"I'll design {tissue}-specific enhancers by generating "
         f"{N_SAMPLES} candidates with DNA-Diffusion (conditioned on {cell_type}), "
         f"then scoring each one with Sei across 40 regulatory tissue classes "
         f"to find the most tissue-specific element.{constraint_note}"

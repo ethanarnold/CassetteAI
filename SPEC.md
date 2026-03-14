@@ -310,7 +310,7 @@ a gene therapy scientist would understand.
 ### 2D. Interpretation Logic (`backend/interpret.py`)
 
 **Build checklist:**
-- [x] Send Sei scores to Claude with interpretation prompt (use claude-opus-4-6 for deeper biological reasoning)
+- [x] Send Sei scores to Claude with interpretation prompt (use claude-sonnet-4-20250514 for biological reasoning)
 - [x] Parse Claude response into structured ranking
 - [x] Sequence pathology checks (can be code, not Claude): GC content, homopolymers, AATAAA/ATTAAA
 - [x] Cassette composition: top element + minTBG + transgene placeholder + polyA + ITRs
@@ -427,8 +427,7 @@ Cache layer was removed — every run generates fresh results via Modal.
 |-------|--------|------|-----------------|
 | DNA-Diffusion | github.com/pinellolab/DNA-Diffusion | ~500MB | A10G or A100 |
 | Sei | github.com/FunctionLab/sei-framework | ~2GB | A10G or A100 |
-| Claude Sonnet | Anthropic API | API call | None (API) — orchestration/parsing |
-| Claude Opus | Anthropic API | API call | None (API) — biological interpretation |
+| Claude Sonnet | Anthropic API | API call | None (API) — orchestration, parsing, and biological interpretation |
 
 ---
 
@@ -490,5 +489,5 @@ Track key decisions made during build so future conversations have context.
 | Decision | Choice | Rationale |
 |----------|--------|-----------|
 | Merge PLAN.md + SPEC.md | Combined into SPEC2.md | Single source of truth; agents only need one file |
-| Claude model split | Sonnet for orchestration, Opus for interpretation | Sonnet is fast/cheap for parsing; Opus gives better biological reasoning for score interpretation |
+| Claude model split | Sonnet for all Claude tasks | Sonnet used for orchestration, parsing, and biological interpretation — Opus was too slow for demo pacing |
 | Remove local fallbacks | Eliminated all fabrication functions (generate_elements_local, score_elements_local) | CLAUDE.md Rule 7: never fabricate biological data; all data from real models or clear errors |

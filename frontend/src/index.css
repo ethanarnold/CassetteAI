@@ -78,3 +78,28 @@ html, body {
   font-style: italic;
 }
 
+/* ── Shimmer sweep on active thoughts ── */
+@keyframes shimmer {
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+.thought-shimmer {
+  position: relative;
+  overflow: hidden;
+}
+
+.thought-shimmer::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    105deg,
+    transparent 35%,
+    rgba(255, 255, 255, 0.6) 50%,
+    transparent 65%
+  );
+  animation: shimmer 2s linear infinite;
+  pointer-events: none;
+}
+
