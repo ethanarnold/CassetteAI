@@ -1,5 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
+import Lottie from 'lottie-react'
 import { sendChatMessage } from './api.js'
+import dnaHelixAnimation from './assets/dna-helix.json'
 
 // ---------------------------------------------------------------------------
 // Dwell times (ms) — minimum display time before revealing the next item.
@@ -106,6 +108,19 @@ function useMessageQueue(setMessages) {
 // Components
 // ---------------------------------------------------------------------------
 
+function DnaSpinner({ static: isStatic } = {}) {
+  return (
+    <div style={{ width: 72, height: 72 }}>
+      <Lottie
+        animationData={dnaHelixAnimation}
+        loop={!isStatic}
+        autoplay={!isStatic}
+        style={{ width: 72, height: 72 }}
+      />
+    </div>
+  )
+}
+
 function ThoughtBubble({ message, isActive }) {
   return (
     <div className="flex justify-start">
@@ -124,7 +139,7 @@ function ThoughtBubble({ message, isActive }) {
   )
 }
 
-function MessageBubble({ message }) {
+function MessageBubble({ message, showDna }) {
   return (
     <div className="flex justify-start">
       <div
@@ -136,6 +151,11 @@ function MessageBubble({ message }) {
         }}
       >
         {message}
+        {showDna && (
+          <div style={{ marginTop: 4 }}>
+            <DnaSpinner static />
+          </div>
+        )}
       </div>
     </div>
   )
@@ -153,7 +173,9 @@ function StreamingBubble({ message }) {
         }}
       >
         {message}
-        <span className="streaming-cursor" />
+        <div style={{ marginTop: 4 }}>
+          <DnaSpinner />
+        </div>
       </div>
     </div>
   )
@@ -394,12 +416,22 @@ export default function Chat({ onResults, hasStarted, onStart, messages, setMess
                 isActive={!msg.resolved}
               />
             )
-          if (msg.type === 'message') return <MessageBubble key={i} message={msg.message} />
+          if (msg.type === 'message') {
+            // Show static DNA only on the very last message in the list, and only when not loading
+            const isLast = i === messages.length - 1 && !loading
+            return <MessageBubble key={i} message={msg.message} showDna={isLast} />
+          }
           if (msg.type === 'streaming') return <StreamingBubble key={i} message={msg.message} />
           if (msg.type === 'error')
             return <AssistantBubble key={i} content={msg.content} isError />
           return null
         })}
+
+        {loading && !messages.some(m => m.type === 'streaming') && (
+          <div className="flex justify-start">
+            <DnaSpinner />
+          </div>
+        )}
 
         <div ref={bottomRef} />
       </div>
