@@ -5,19 +5,10 @@ Run with: uvicorn backend.server:app --reload --port 8000
 """
 
 import json
+import logging
 import os
 from pathlib import Path
 from typing import AsyncGenerator
-
-# Fail fast at import time if the key is missing — much clearer than a
-# mid-stream KeyError buried inside an SSE response.
-if "ANTHROPIC_API_KEY" not in os.environ:
-    raise RuntimeError(
-        "ANTHROPIC_API_KEY is not set. "
-        "Export it in the SAME shell that runs uvicorn:\n"
-        "  export ANTHROPIC_API_KEY='sk-...'\n"
-        "  uvicorn backend.server:app --reload --port 8000"
-    )
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -27,14 +18,26 @@ from pydantic import BaseModel
 
 from backend.orchestrator import run_pipeline
 
+logger = logging.getLogger(__name__)
+
 app = FastAPI(title="CassetteAI")
 
+_origins = os.environ.get("ALLOWED_ORIGINS", "http://localhost:5173").split(",")
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "*"],
+    allow_origins=_origins,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.on_event("startup")
+async def _check_env() -> None:
+    if "ANTHROPIC_API_KEY" not in os.environ:
+        logger.error(
+            "ANTHROPIC_API_KEY is not set. "
+            "The /api/chat endpoint will fail until it is configured."
+        )
 
 
 class ChatRequest(BaseModel):

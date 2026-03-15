@@ -1,6 +1,6 @@
-fastapi
-uvicorn[standard]
-anthropic
-modal
-numpy
-biopython
+fastapi==0.131.0
+uvicorn[standard]==0.41.0
+anthropic==0.83.0
+modal==1.3.5
+numpy==2.2.6
+biopython==1.83
