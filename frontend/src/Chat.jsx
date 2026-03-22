@@ -543,25 +543,25 @@ export default function Chat({ onResults, hasStarted, onStart, messages, setMess
                   return (
                     <button
                       key={label}
-                      className={`pill-cascade${label === 'Design' ? ' design-shimmer' : ''}`}
+                      className="pill-cascade"
                       onClick={() => setExpandedPill(label)}
                       style={{
                         display: 'flex',
                         alignItems: 'center',
                         gap: 6,
-                        background: '#f0f0f0',
+                        background: label === 'Design' ? '#002FA7' : '#f0f0f0',
                         border: '1px solid #e0e0e0',
                         borderRadius: 16,
                         padding: '8px 18px',
                         fontSize: 14,
                         fontWeight: 400,
-                        color: '#555',
+                        color: label === 'Design' ? '#fff' : '#555',
                         cursor: 'pointer',
                         transition: 'all 150ms ease',
                         animationDelay: `${idx * 120}ms`,
                       }}
-                      onMouseEnter={(e) => (e.currentTarget.style.background = '#e5e5e5')}
-                      onMouseLeave={(e) => (e.currentTarget.style.background = '#f0f0f0')}
+                      onMouseEnter={(e) => (e.currentTarget.style.background = label === 'Design' ? '#0038C7' : '#e5e5e5')}
+                      onMouseLeave={(e) => (e.currentTarget.style.background = label === 'Design' ? '#002FA7' : '#f0f0f0')}
                     >
                       <Icon style={{ width: 16, height: 16 }} />
                       {label}

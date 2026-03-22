@@ -114,23 +114,4 @@ html, body {
   pointer-events: none;
 }
 
-/* ── Subtle shimmer on Design pill ── */
-.design-shimmer {
-  position: relative;
-  overflow: hidden;
-}
-
-.design-shimmer::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(
-    105deg,
-    transparent 40%,
-    rgba(255, 255, 255, 0.35) 50%,
-    transparent 60%
-  );
-  animation: shimmer 3s linear infinite;
-  pointer-events: none;
-}
 
