@@ -19,7 +19,7 @@ from fastapi.responses import StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from backend.orchestrator import run_pipeline
+from backend.orchestrator import get_anthropic_client, run_pipeline
 
 logger = logging.getLogger(__name__)
 
@@ -56,6 +56,23 @@ async def _event_stream(prompt: str, history: list[dict[str, str]]) -> AsyncGene
 @app.get("/api/health")
 async def health() -> dict[str, str]:
     return {"status": "ok"}
+
+
+class ChatNameRequest(BaseModel):
+    prompt: str
+
+
+@app.post("/api/chat-name")
+async def chat_name(request: ChatNameRequest) -> dict[str, str]:
+    client = get_anthropic_client()
+    response = await client.messages.create(
+        model="claude-sonnet-4-20250514",
+        max_tokens=20,
+        system="Generate a 2-5 word title for this chat. Return ONLY the title.",
+        messages=[{"role": "user", "content": request.prompt}],
+    )
+    name = response.content[0].text.strip().strip('"').strip("'")
+    return {"name": name}
 
 
 @app.post("/api/chat")

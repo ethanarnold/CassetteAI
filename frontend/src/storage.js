@@ -24,3 +24,21 @@ export function deleteChat(chatId) {
     // ignore
   }
 }
+
+/**
+ * List all chat IDs found in localStorage (scans for cassette-chat-* keys).
+ */
+export function listChatIds() {
+  const ids = []
+  try {
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i)
+      if (key && key.startsWith(PREFIX)) {
+        ids.push(key.slice(PREFIX.length))
+      }
+    }
+  } catch {
+    // ignore
+  }
+  return ids
+}
