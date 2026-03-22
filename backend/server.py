@@ -70,7 +70,20 @@ async def chat(request: ChatRequest) -> StreamingResponse:
     )
 
 
+# ---------------------------------------------------------------------------
+# SPA static files — serves index.html for any path that doesn't match a
+# real file (needed for client-side routing under /chat/*).
+# ---------------------------------------------------------------------------
+class SPAStaticFiles(StaticFiles):
+    async def get_response(self, path: str, scope):
+        try:
+            return await super().get_response(path, scope)
+        except Exception:
+            # Fall back to index.html for SPA client-side routes
+            return await super().get_response("index.html", scope)
+
+
 # Serve frontend in production — must be last so API routes take priority
 _frontend_dist = Path(__file__).parent.parent / "frontend" / "dist"
 if _frontend_dist.exists():
-    app.mount("/", StaticFiles(directory=str(_frontend_dist), html=True), name="static")
+    app.mount("/", SPAStaticFiles(directory=str(_frontend_dist), html=True), name="static")
