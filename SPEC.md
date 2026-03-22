@@ -241,14 +241,14 @@ When a user describes a design goal:
 6. Interpret scores and return results
 
 Tissue mapping:
-- "liver" / "hepatocyte" → HepG2 (DNA-Diffusion), liver tracks in Sei
-- "heart" / "cardiac" / "cardiomyocyte" → not available in DNA-Diffusion pretrained; fall back to closest
-- "brain" / "neuron" → SK-N-SH or neural tracks in Sei
-- "blood" / "hematopoietic" → K562
+- "liver" / "hepatocyte" / "hepatic" → HepG2
+- "blood" / "hematopoietic" / "myeloid" → K562
+- "immune" / "lymphoid" / "B-cell" / "T-cell" → GM12878
+- "stem cell" / "pluripotent" / "embryonic" → hESCT0
 
 If the user requests a tissue not covered by DNA-Diffusion's pretrained
-conditioning labels (HepG2, K562, GM12878), explain the limitation and
-offer the closest available option.
+conditioning labels (HepG2, K562, GM12878, hESCT0), explain the limitation
+and offer the closest available proxy.
 ```
 
 **Build checklist:**

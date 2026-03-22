@@ -4,6 +4,9 @@ Serves the pipeline via SSE streaming on POST /api/chat.
 Run with: uvicorn backend.server:app --reload --port 8000
 """
 
+from dotenv import load_dotenv
+load_dotenv()
+
 import json
 import logging
 import os

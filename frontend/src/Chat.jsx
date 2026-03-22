@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
-import { LightBulbIcon, AcademicCapIcon, PencilIcon, XMarkIcon, ArrowUpIcon } from '@heroicons/react/24/outline'
+import { LightBulbIcon, PencilIcon, XMarkIcon, ArrowUpIcon } from '@heroicons/react/24/outline'
 import { StopIcon } from '@heroicons/react/24/solid'
 import Lottie from 'lottie-react'
 import { sendChatMessage } from './api.js'
@@ -493,20 +493,15 @@ export default function Chat({ onResults, hasStarted, onStart, messages, setMess
         {!loading && (() => {
           const isTyping = input.trim().length > 0
           const suggestions = {
-            Explain: [
+            'What does this tool do?': [
               'What do you do?',
               'How are you different from a regular LLM?',
               'Who are your target users?',
             ],
-            Learn: [
-              'What are DNA cassettes?',
-              "What's tissue specificity?",
-              'What are enhancers?',
-            ],
             Design: [
-              'Design an enhancer for white blood cells.',
+              'Design an enhancer for blood cells.',
               'Generate a liver-specific enhancer.',
-              'Create a cassette that targets epithelial tissue.',
+              'Create a cassette for immune cells.',
             ],
           }
           const previewPrompts = {
@@ -516,22 +511,15 @@ export default function Chat({ onResults, hasStarted, onStart, messages, setMess
               "How is CassetteAI different from just asking ChatGPT about genomics? What can you do that a regular LLM can't?",
             'Who are your target users?':
               'Who is CassetteAI built for? What kind of researchers or teams would benefit most from using it?',
-            'What are DNA cassettes?':
-              'Can you explain what a DNA cassette is and why it matters for gene therapy and synthetic biology?',
-            "What's tissue specificity?":
-              "What does tissue specificity mean in the context of gene regulation, and why is it important for therapeutic design?",
-            'What are enhancers?':
-              'What are enhancer sequences in the genome, and how do they control when and where genes are expressed?',
-            'Design an enhancer for white blood cells.':
-              'Design a synthetic enhancer sequence optimized for activity in white blood cells (leukocytes/hematopoietic lineage).',
+'Design an enhancer for blood cells.':
+              'Design a synthetic enhancer sequence optimized for activity in blood cells (hematopoietic/myeloid lineage).',
             'Generate a liver-specific enhancer.':
               'Generate a novel enhancer sequence with strong predicted activity in hepatocytes / liver tissue.',
-            'Create a cassette that targets epithelial tissue.':
-              'Create a gene-regulatory cassette designed to drive expression specifically in epithelial tissue.',
+            'Create a cassette for immune cells.':
+              'Create a gene-regulatory cassette designed to drive expression specifically in immune / lymphoid cells.',
           }
           const pillIcons = {
-            Explain: LightBulbIcon,
-            Learn: AcademicCapIcon,
+            'What does this tool do?': LightBulbIcon,
             Design: PencilIcon,
           }
           const pills = Object.keys(suggestions)

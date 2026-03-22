@@ -54,11 +54,11 @@ Do the following:
    - numpy
    - biopython
 
-5. Do NOT create a .env or .env.example file. Credentials are handled as follows:
-   - ANTHROPIC_API_KEY: already exported in the current shell environment via `export ANTHROPIC_API_KEY=...`
+5. A .env.example file exists at the project root. For local development:
+   - cp .env.example .env
+   - Fill in ANTHROPIC_API_KEY in .env
+   - The server loads .env automatically via python-dotenv
    - Modal auth: already configured via `python3 -m modal setup` which stores tokens in ~/.modal.toml
-   - The code should read ANTHROPIC_API_KEY from os.environ (no dotenv needed for this key)
-   - Modal's SDK handles its own auth automatically via ~/.modal.toml
 
 6. Create frontend using Vite + React + Tailwind:
    - Run: npm create vite@latest frontend -- --template react
@@ -152,7 +152,7 @@ def get_anthropic_client():
 This ensures import-time tests pass without API keys set.
 
 All files must use type hints.
-Credentials: ANTHROPIC_API_KEY is read from os.environ (already exported in the shell). Modal auth is handled automatically by the Modal SDK via ~/.modal.toml (set up via `python3 -m modal setup`). Do NOT use python-dotenv or .env files for these.
+Credentials: ANTHROPIC_API_KEY is read from os.environ (loaded from .env via python-dotenv in server.py). Modal auth is handled automatically by the Modal SDK via ~/.modal.toml (set up via `python3 -m modal setup`).
 
 Commit with message "feat: cache layer, prompts, and real modal functions"
 PROMPT
@@ -237,7 +237,7 @@ As specified in SPEC.md Phase 3A:
    - Mount frontend/dist/ at / if the directory exists (for production)
    - This should be the LAST route so API routes take priority
 
-5. Do NOT use python-dotenv or .env files. ANTHROPIC_API_KEY is already exported in the shell environment. Modal auth is automatic via ~/.modal.toml.
+5. python-dotenv is loaded in server.py to read .env automatically. Modal auth is via ~/.modal.toml.
 6. The SSE stream must handle {"type": "error", "message": "..."} events from the orchestrator and pass them through to the frontend so the user sees Modal/API errors clearly.
 7. All routes must be async
 7. Type hints on everything

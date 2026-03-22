@@ -44,9 +44,9 @@ def get_anthropic_client():
 # Canonical tissue → DNA-Diffusion cell type string
 _TISSUE_TO_CELL_TYPE: dict[str, str] = {
     "liver": "HepG2",
-    "cardiac": "K562",
-    "neural": "GM12878",
     "blood": "K562",
+    "immune": "GM12878",
+    "stem cell": "hESCT0",
 }
 
 # Synonym → canonical tissue key
@@ -54,19 +54,20 @@ _TISSUE_SYNONYMS: dict[str, str] = {
     "liver": "liver",
     "hepatocyte": "liver",
     "hepatic": "liver",
-    "heart": "cardiac",
-    "cardiac": "cardiac",
-    "cardiomyocyte": "cardiac",
-    "brain": "neural",
-    "neuron": "neural",
-    "neural": "neural",
-    "cns": "neural",
     "blood": "blood",
     "hematopoietic": "blood",
-    "b-cell": "blood",
-    "t-cell": "blood",
+    "myeloid": "blood",
     "erythrocyte": "blood",
     "monocyte": "blood",
+    "immune": "immune",
+    "lymphoid": "immune",
+    "b-cell": "immune",
+    "t-cell": "immune",
+    "lymphocyte": "immune",
+    "stem cell": "stem cell",
+    "stem": "stem cell",
+    "pluripotent": "stem cell",
+    "embryonic": "stem cell",
 }
 
 
@@ -165,8 +166,8 @@ def _build_messages(
 _CLASSIFY_SYSTEM = (
     "You are CassetteAI, a gene therapy design tool that generates "
     "synthetic regulatory DNA elements (enhancers) optimized for "
-    "tissue-specific expression. You support liver, cardiac, neural, "
-    "and blood tissues. You use DNA-Diffusion for generation and Sei "
+    "tissue-specific expression. You support liver, blood, immune, "
+    "and stem cell tissues. You use DNA-Diffusion for generation and Sei "
     "for scoring tissue specificity.\n\n"
     "Classify the user's message as either a design request or a "
     "conversational message. Return ONLY a raw JSON object (no "
@@ -189,15 +190,15 @@ _CLASSIFY_SYSTEM = (
     '- "What do these results mean?" -> {"type": "conversation"}\n'
     '- "How can I use this enhancer?" -> {"type": "conversation"}\n'
     '- "Design a liver enhancer" -> {"type": "design", ...}\n'
-    '- "I need a cardiac-specific regulatory element" -> {"type": "design", ...}\n'
-    '- "Generate neural enhancers for AAV delivery" -> {"type": "design", ...}'
+    '- "I need an immune-specific regulatory element" -> {"type": "design", ...}\n'
+    '- "Generate blood enhancers for AAV delivery" -> {"type": "design", ...}'
 )
 
 _CONVERSATION_SYSTEM = (
     "You are CassetteAI, a gene therapy design tool that generates "
     "synthetic regulatory DNA elements (enhancers) optimized for "
-    "tissue-specific expression. You support liver, cardiac, neural, "
-    "and blood tissues. You use DNA-Diffusion for generation and Sei "
+    "tissue-specific expression. You support liver, blood, immune, "
+    "and stem cell tissues. You use DNA-Diffusion for generation and Sei "
     "for scoring tissue specificity.\n\n"
     "Respond to the user's conversational message in 2-4 sentences. "
     "Be friendly and informative. Do not use emojis or markdown. "
@@ -373,7 +374,7 @@ async def run_pipeline(
             "type": "error",
             "message": (
                 f"Unsupported tissue '{tissue}'. "
-                "Supported tissues: liver, cardiac, neural, blood. "
+                "Supported tissues: liver, blood, immune, stem cell. "
                 "Please rephrase your request using one of these."
             ),
         }
