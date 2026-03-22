@@ -543,7 +543,7 @@ export default function Chat({ onResults, hasStarted, onStart, messages, setMess
                   return (
                     <button
                       key={label}
-                      className="pill-cascade"
+                      className={`pill-cascade${label === 'Design' ? ' design-shimmer' : ''}`}
                       onClick={() => setExpandedPill(label)}
                       style={{
                         display: 'flex',
