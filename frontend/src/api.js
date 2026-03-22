@@ -1,4 +1,23 @@
 /**
+ * Generate a short chat name from the first prompt.
+ * Returns the name string, or null on error.
+ */
+export async function generateChatName(prompt) {
+  try {
+    const res = await fetch('/api/chat-name', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ prompt }),
+    })
+    if (!res.ok) return null
+    const data = await res.json()
+    return data.name || null
+  } catch {
+    return null
+  }
+}
+
+/**
  * Send a chat message and async-iterate over parsed SSE events.
  *
  * Yielded event shapes (mirrors backend/orchestrator.py):

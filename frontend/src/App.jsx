@@ -1,19 +1,22 @@
 import { useState, useCallback, useEffect, useRef } from 'react'
-import { Switch, Route, useLocation, useParams, Redirect } from 'wouter'
+import { Switch, Route, useLocation, useParams, useRoute, Redirect } from 'wouter'
 import Chat from './Chat.jsx'
 import Heatmap from './Heatmap.jsx'
 import CassetteDiagram from './CassetteDiagram.jsx'
-import { saveChat, loadChat } from './storage.js'
+import Sidebar from './Sidebar.jsx'
+import { saveChat, loadChat, deleteChat } from './storage.js'
+import { loadChatIndex, addChatToIndex, updateChatName, removeChatFromIndex } from './chatIndex.js'
+import { generateChatName } from './api.js'
 
 const PENDING_PROMPT_KEY = 'cassette-pending-prompt'
+const SIDEBAR_KEY = 'cassette-sidebar-open'
 
 // ---------------------------------------------------------------------------
 // LandingPage — renders at /
 // ---------------------------------------------------------------------------
-function LandingPage() {
+function LandingPage({ onNewChat }) {
   const [messages, setMessages] = useState([])
   const [loading, setLoading] = useState(false)
-  const [, navigate] = useLocation()
 
   const handleResults = useCallback(() => {}, [])
 
@@ -21,15 +24,15 @@ function LandingPage() {
     (prompt) => {
       const chatId = crypto.randomUUID()
       sessionStorage.setItem(PENDING_PROMPT_KEY, prompt)
-      navigate(`/chat/${chatId}`)
+      onNewChat(chatId)
     },
-    [navigate],
+    [onNewChat],
   )
 
   return (
     <div
       style={{
-        height: '100dvh',
+        height: '100%',
         display: 'flex',
         flexDirection: 'column',
         background: '#FAF9F6',
@@ -37,23 +40,6 @@ function LandingPage() {
         overflow: 'hidden',
       }}
     >
-      {/* Minimal corner logo */}
-      <div
-        style={{
-          position: 'absolute',
-          top: 16,
-          left: 20,
-          display: 'flex',
-          alignItems: 'center',
-          gap: 8,
-          opacity: 1,
-        }}
-      >
-        <span style={{ fontSize: 14, fontWeight: 500, color: '#333333' }}>
-          CassetteAI
-        </span>
-      </div>
-
       {/* Centered content */}
       <div
         style={{
@@ -82,7 +68,7 @@ function LandingPage() {
 // ---------------------------------------------------------------------------
 // ChatPage — renders at /chat/:chatId
 // ---------------------------------------------------------------------------
-function ChatPage() {
+function ChatPage({ refreshIndex }) {
   const { chatId } = useParams()
   const [, navigate] = useLocation()
 
@@ -91,6 +77,7 @@ function ChatPage() {
   const [results, setResults] = useState(stored.current?.results ?? null)
   const [messages, setMessages] = useState(stored.current?.messages ?? [])
   const [loading, setLoading] = useState(false)
+  const nameGenerated = useRef(false)
 
   // Read pending prompt from sessionStorage (landing → chat handoff)
   const [initialPrompt] = useState(() => {
@@ -116,12 +103,28 @@ function ChatPage() {
     }
   }, [chatId, messages, results, shouldRedirect])
 
+  // Generate chat name after first user message appears
+  useEffect(() => {
+    if (nameGenerated.current || shouldRedirect) return
+    const firstUserMsg = messages.find((m) => m.role === 'user')
+    if (!firstUserMsg) return
+    nameGenerated.current = true
+    const prompt = firstUserMsg.content || initialPrompt
+    if (!prompt) return
+    generateChatName(prompt).then((name) => {
+      if (name) {
+        updateChatName(chatId, name)
+        refreshIndex()
+      }
+    })
+  }, [messages, chatId, initialPrompt, shouldRedirect, refreshIndex])
+
   if (shouldRedirect) return null
 
   return (
     <div
       style={{
-        height: '100dvh',
+        height: '100%',
         display: 'flex',
         flexDirection: 'column',
         background: '#FAF9F6',
@@ -129,60 +132,6 @@ function ChatPage() {
         overflow: 'hidden',
       }}
     >
-      {/* Header (glass) */}
-      <header
-        className="glass fade-in"
-        style={{
-          flexShrink: 0,
-          display: 'flex',
-          alignItems: 'center',
-          gap: 12,
-          padding: '10px 20px',
-          borderRadius: 0,
-          borderTop: 'none',
-          borderLeft: 'none',
-          borderRight: 'none',
-          borderBottom: '1px solid rgba(0,0,0,0.06)',
-        }}
-      >
-        <a href="/" onClick={(e) => { e.preventDefault(); navigate('/') }} style={{ textDecoration: 'none' }}>
-          <h1
-            style={{
-              fontSize: 24,
-              fontWeight: 900,
-              color: '#333333',
-              letterSpacing: '0.07em',
-              lineHeight: 1.1,
-              margin: 0,
-            }}
-          >
-            CassetteAI
-          </h1>
-          <p style={{ fontSize: 14, color: '#9ca3af', margin: 0 }}>
-            AI-Powered DNA Cassette Design
-          </p>
-        </a>
-
-        <div
-          style={{
-            marginLeft: 'auto',
-            display: 'flex',
-            alignItems: 'center',
-            gap: 12,
-            fontSize: 14,
-            color: '#9ca3af',
-          }}
-        >
-          <a href="https://claude.ai" target="_blank" rel="noopener noreferrer" style={{ color: 'inherit', textDecoration: 'none' }}>Claude</a>
-          <span style={{ color: '#d4d4d4' }}>·</span>
-          <a href="https://modal.com" target="_blank" rel="noopener noreferrer" style={{ color: 'inherit', textDecoration: 'none' }}>Modal</a>
-          <span style={{ color: '#d4d4d4' }}>·</span>
-          <a href="https://github.com/pinellolab/DNA-Diffusion" target="_blank" rel="noopener noreferrer" style={{ color: 'inherit', textDecoration: 'none' }}>DNA-Diffusion</a>
-          <span style={{ color: '#d4d4d4' }}>·</span>
-          <a href="https://github.com/FunctionLab/sei-framework" target="_blank" rel="noopener noreferrer" style={{ color: 'inherit', textDecoration: 'none' }}>Sei</a>
-        </div>
-      </header>
-
       {/* Main panels */}
       <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
         {/* Left — Chat (40% width) */}
@@ -234,16 +183,95 @@ function ChatPage() {
 }
 
 // ---------------------------------------------------------------------------
-// App — root with routes
+// App — root with sidebar + routes
 // ---------------------------------------------------------------------------
 export default function App() {
+  const [, navigate] = useLocation()
+  const [, routeParams] = useRoute('/chat/:chatId')
+  const activeChatId = routeParams?.chatId ?? null
+
+  // Sidebar open state — persisted to localStorage, default closed
+  const [sidebarOpen, setSidebarOpen] = useState(() => {
+    try {
+      return localStorage.getItem(SIDEBAR_KEY) === 'true'
+    } catch {
+      return false
+    }
+  })
+
+  // Chat index state
+  const [chatIndex, setChatIndex] = useState(() => loadChatIndex())
+
+  const refreshIndex = useCallback(() => {
+    setChatIndex(loadChatIndex())
+  }, [])
+
+  const handleToggleSidebar = useCallback(() => {
+    setSidebarOpen((prev) => {
+      const next = !prev
+      try {
+        localStorage.setItem(SIDEBAR_KEY, String(next))
+      } catch {}
+      return next
+    })
+  }, [])
+
+  const handleNewChat = useCallback(
+    (chatId) => {
+      // If called with a chatId (from LandingPage), add to index and navigate
+      if (chatId) {
+        setChatIndex(addChatToIndex(chatId))
+        navigate(`/chat/${chatId}`)
+        return
+      }
+      // Otherwise, navigate to landing
+      navigate('/')
+    },
+    [navigate],
+  )
+
+  const handleSelectChat = useCallback(
+    (chatId) => {
+      navigate(`/chat/${chatId}`)
+    },
+    [navigate],
+  )
+
+  const handleDeleteChat = useCallback(
+    (chatId) => {
+      deleteChat(chatId)
+      setChatIndex(removeChatFromIndex(chatId))
+      if (activeChatId === chatId) {
+        navigate('/')
+      }
+    },
+    [activeChatId, navigate],
+  )
+
   return (
-    <Switch>
-      <Route path="/" component={LandingPage} />
-      <Route path="/chat/:chatId" component={ChatPage} />
-      <Route>
-        <Redirect to="/" />
-      </Route>
-    </Switch>
+    <div style={{ display: 'flex', height: '100dvh', overflow: 'hidden' }}>
+      <Sidebar
+        isOpen={sidebarOpen}
+        onToggle={handleToggleSidebar}
+        chats={chatIndex}
+        activeChatId={activeChatId}
+        onNewChat={() => handleNewChat()}
+        onSelectChat={handleSelectChat}
+        onDeleteChat={handleDeleteChat}
+      />
+      <div style={{ flex: 1, overflow: 'hidden' }}>
+        <Switch>
+          <Route path="/">
+            <LandingPage onNewChat={handleNewChat} />
+          </Route>
+          <Route path="/chat/:chatId">
+            <ChatPage refreshIndex={refreshIndex} />
+          </Route>
+          <Route>
+            <Redirect to="/" />
+          </Route>
+        </Switch>
+      </div>
+    </div>
   )
 }
