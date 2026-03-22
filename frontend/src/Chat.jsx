@@ -219,7 +219,7 @@ function AssistantBubble({ content, isError }) {
 // Chat
 // ---------------------------------------------------------------------------
 
-export default function Chat({ onResults, hasStarted, onStart, messages, setMessages, loading, setLoading }) {
+export default function Chat({ onResults, hasStarted, onStart, messages, setMessages, loading, setLoading, initialPrompt }) {
   const [input, setInput] = useState('')
   const [expandedPill, setExpandedPill] = useState(null)
   const [hoverPlaceholder, setHoverPlaceholder] = useState(null)
@@ -255,6 +255,27 @@ export default function Chat({ onResults, hasStarted, onStart, messages, setMess
     wasTypingRef.current = typing
   }, [input])
 
+  // Auto-submit initialPrompt on mount (landing → chat handoff)
+  const didAutoSubmit = useRef(false)
+  useEffect(() => {
+    if (initialPrompt && !didAutoSubmit.current) {
+      didAutoSubmit.current = true
+      setInput(initialPrompt)
+      // Wait a tick for React to flush the state update before submitting
+      setTimeout(() => {
+        const form = document.querySelector('form')
+        if (form) form.requestSubmit()
+      }, 0)
+    }
+  }, [initialPrompt])
+
+  // Abort any in-flight fetch on unmount
+  useEffect(() => {
+    return () => {
+      abortRef.current?.abort()
+    }
+  }, [])
+
   const handleStop = useCallback(() => {
     abortRef.current?.abort()
     if (rafRef.current) {
@@ -283,7 +304,10 @@ export default function Chat({ onResults, hasStarted, onStart, messages, setMess
       const prompt = input.trim()
       if (!prompt || loading) return
 
-      if (!hasStarted && onStart) onStart()
+      if (!hasStarted && onStart) {
+        onStart(prompt)
+        return
+      }
 
       setInput('')
       setLoading(true)
