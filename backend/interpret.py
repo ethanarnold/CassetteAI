@@ -132,6 +132,8 @@ _ON_TARGET_CLASSES: dict[str, list[str]] = {
     "cardiac": ["E12 Erythroblast-like", "P Promoter"],
     "neural": ["E3 Brain / Melanocyte", "E10 Brain"],
     "blood": ["E11 T-cell", "E5 B-cell-like", "E12 Erythroblast-like"],
+    "immune": ["E5 B-cell-like", "E11 T-cell", "E7 Monocyte / Macrophage"],
+    "stem cell": ["E1 Stem cell", "PC4 Polycomb / Bivalent stem cell Enh"],
 }
 
 _CRITICAL_FLAGS = {"CRYPTIC_POLYA", "HOMOPOLYMER"}

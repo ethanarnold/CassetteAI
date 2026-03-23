@@ -74,6 +74,8 @@ const TISSUE_HIGHLIGHT_KEYS = {
   cardiac: ['E12 Erythroblast-like', 'TF2 CEBPB'],
   neural:  ['E3 Brain / Melanocyte', 'E10 Brain', 'TF4 OTX2'],
   blood:   ['E7 Monocyte / Macrophage', 'E11 T-cell', 'E5 B-cell-like', 'E12 Erythroblast-like', 'TF2 CEBPB'],
+  immune:      ['E5 B-cell-like', 'E11 T-cell', 'E7 Monocyte / Macrophage'],
+  'stem cell': ['E1 Stem cell', 'PC4 Polycomb / Bivalent stem cell Enh'],
 }
 
 const HIGHLIGHT_BORDER = '#000000'
