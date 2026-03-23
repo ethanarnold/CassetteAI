@@ -13,12 +13,51 @@ export default function Sidebar({
   onNewChat,
   onSelectChat,
   onDeleteChat,
+  isMobile,
 }) {
+  // Floating toggle button when mobile sidebar is closed
+  if (isMobile && !isOpen) {
+    return (
+      <button
+        onClick={onToggle}
+        aria-label="Open sidebar"
+        style={{
+          position: 'fixed',
+          top: 8,
+          left: 6,
+          zIndex: 50,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          width: 36,
+          height: 36,
+          border: 'none',
+          background: 'rgba(255,255,255,0.8)',
+          cursor: 'pointer',
+          borderRadius: 8,
+          color: '#666',
+        }}
+        onMouseEnter={(e) => (e.currentTarget.style.background = '#e8e8e3')}
+        onMouseLeave={(e) => (e.currentTarget.style.background = 'rgba(255,255,255,0.8)')}
+      >
+        <SidebarLeftIcon style={{ width: 20, height: 20 }} />
+      </button>
+    )
+  }
+
+  const sidebarStyle = isMobile
+    ? {
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        width: EXPANDED_W,
+        height: '100dvh',
+        zIndex: 40,
+      }
+    : { width: isOpen ? EXPANDED_W : COLLAPSED_W }
+
   return (
-    <div
-      className="sidebar"
-      style={{ width: isOpen ? EXPANDED_W : COLLAPSED_W }}
-    >
+    <div className="sidebar" style={sidebarStyle}>
       {/* Top bar — title + toggle */}
       <div
         style={{

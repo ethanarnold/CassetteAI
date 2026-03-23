@@ -219,7 +219,7 @@ function AssistantBubble({ content, isError }) {
 // Chat
 // ---------------------------------------------------------------------------
 
-export default function Chat({ onResults, hasStarted, onStart, messages, setMessages, loading, setLoading, initialPrompt }) {
+export default function Chat({ onResults, hasStarted, onStart, messages, setMessages, loading, setLoading, initialPrompt, isNarrow }) {
   const [input, setInput] = useState('')
   const [expandedPill, setExpandedPill] = useState(null)
   const [hoverPlaceholder, setHoverPlaceholder] = useState(null)
@@ -408,20 +408,20 @@ export default function Chat({ onResults, hasStarted, onStart, messages, setMess
   /* -- Landing mode: centered input with title -- */
   if (!hasStarted) {
     return (
-      <div style={{ width: '100%', maxWidth: 696 }}>
+      <div style={{ width: '100%', maxWidth: 696, transform: isNarrow ? 'translateY(-80px)' : undefined }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12, marginBottom: 8 }}>
           <Lottie
             lottieRef={logoLottieRef}
             animationData={dnaHelixThickAnimation}
             loop={false}
             autoplay={false}
-            style={{ width: 68, height: 68, cursor: 'pointer' }}
+            style={{ width: 68, height: 68, cursor: 'pointer', flexShrink: 0 }}
             onMouseEnter={() => logoLottieRef.current?.play()}
             onMouseLeave={() => logoLottieRef.current?.stop()}
           />
           <h1
             style={{
-              fontSize: 60,
+              fontSize: isNarrow ? 36 : 60,
               fontWeight: 500,
               color: '#333333',
               letterSpacing: '0.04em',

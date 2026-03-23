@@ -7,6 +7,7 @@ import Sidebar from './Sidebar.jsx'
 import { saveChat, loadChat, deleteChat } from './storage.js'
 import { loadChatIndex, addChatToIndex, updateChatName, removeChatFromIndex } from './chatIndex.js'
 import { generateChatName } from './api.js'
+import { useMediaQuery } from './useMediaQuery.js'
 
 const PENDING_PROMPT_KEY = 'cassette-pending-prompt'
 const SIDEBAR_KEY = 'cassette-sidebar-open'
@@ -14,7 +15,7 @@ const SIDEBAR_KEY = 'cassette-sidebar-open'
 // ---------------------------------------------------------------------------
 // LandingPage — renders at /
 // ---------------------------------------------------------------------------
-function LandingPage({ onNewChat }) {
+function LandingPage({ onNewChat, isNarrow }) {
   const [messages, setMessages] = useState([])
   const [loading, setLoading] = useState(false)
 
@@ -59,6 +60,7 @@ function LandingPage({ onNewChat }) {
           setMessages={setMessages}
           loading={loading}
           setLoading={setLoading}
+          isNarrow={isNarrow}
         />
       </div>
     </div>
@@ -201,6 +203,9 @@ export default function App() {
   const [, routeParams] = useRoute('/chat/:chatId')
   const activeChatId = routeParams?.chatId ?? null
 
+  const isMobile = useMediaQuery('(max-width: 1023px)')
+  const isNarrow = useMediaQuery('(max-width: 767px)')
+
   // Sidebar open state — persisted to localStorage, default closed
   const [sidebarOpen, setSidebarOpen] = useState(() => {
     try {
@@ -209,6 +214,12 @@ export default function App() {
       return false
     }
   })
+
+  // Lock body scroll when mobile sidebar is open
+  useEffect(() => {
+    document.body.style.overflow = isMobile && sidebarOpen ? 'hidden' : ''
+    return () => { document.body.style.overflow = '' }
+  }, [isMobile, sidebarOpen])
 
   // Chat index state
   const [chatIndex, setChatIndex] = useState(() => loadChatIndex())
@@ -229,6 +240,7 @@ export default function App() {
 
   const handleNewChat = useCallback(
     (chatId) => {
+      if (isMobile) setSidebarOpen(false)
       // If called with a chatId (from LandingPage), add to index and navigate
       if (chatId) {
         setChatIndex(addChatToIndex(chatId))
@@ -238,14 +250,15 @@ export default function App() {
       // Otherwise, navigate to landing
       navigate('/')
     },
-    [navigate],
+    [navigate, isMobile],
   )
 
   const handleSelectChat = useCallback(
     (chatId) => {
+      if (isMobile) setSidebarOpen(false)
       navigate(`/chat/${chatId}`)
     },
-    [navigate],
+    [navigate, isMobile],
   )
 
   const handleDeleteChat = useCallback(
@@ -269,11 +282,24 @@ export default function App() {
         onNewChat={() => handleNewChat()}
         onSelectChat={handleSelectChat}
         onDeleteChat={handleDeleteChat}
+        isMobile={isMobile}
       />
+      {/* Backdrop for mobile overlay sidebar */}
+      {isMobile && sidebarOpen && (
+        <div
+          onClick={handleToggleSidebar}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0,0,0,0.3)',
+            zIndex: 39,
+          }}
+        />
+      )}
       <div style={{ flex: 1, overflow: 'hidden' }}>
         <Switch>
           <Route path="/">
-            <LandingPage onNewChat={handleNewChat} />
+            <LandingPage onNewChat={handleNewChat} isNarrow={isNarrow} />
           </Route>
           <Route path="/chat/:chatId">
             <ChatPage key={activeChatId} refreshIndex={refreshIndex} chatIndex={chatIndex} />
