@@ -15,56 +15,58 @@ export default function Sidebar({
   onDeleteChat,
   isMobile,
 }) {
-  // Floating toggle button when mobile sidebar is closed
-  if (isMobile && !isOpen) {
-    return (
-      <button
-        onClick={onToggle}
-        aria-label="Open sidebar"
-        style={{
-          position: 'fixed',
-          top: 8,
-          left: 6,
-          zIndex: 50,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          width: 36,
-          height: 36,
-          border: 'none',
-          background: 'rgba(255,255,255,0.8)',
-          cursor: 'pointer',
-          borderRadius: 8,
-          color: '#666',
-        }}
-        onMouseEnter={(e) => (e.currentTarget.style.background = '#e8e8e3')}
-        onMouseLeave={(e) => (e.currentTarget.style.background = 'rgba(255,255,255,0.8)')}
-      >
-        <SidebarLeftIcon style={{ width: 20, height: 20 }} />
-      </button>
-    )
-  }
-
   const sidebarStyle = isMobile
     ? {
         position: 'fixed',
         top: 0,
         left: 0,
+        bottom: 0,
         width: EXPANDED_W,
-        height: '100dvh',
-        zIndex: 40,
+        zIndex: 45,
+        transform: isOpen ? 'translateX(0)' : 'translateX(-100%)',
+        transition: 'transform 200ms ease',
+        paddingTop: 'env(safe-area-inset-top, 0px)',
+        paddingBottom: 'env(safe-area-inset-bottom, 0px)',
       }
-    : { width: isOpen ? EXPANDED_W : COLLAPSED_W }
+    : { width: isOpen ? EXPANDED_W : COLLAPSED_W, height: '100%' }
 
   return (
-    <div className="sidebar" style={sidebarStyle}>
+    <>
+      {/* Floating toggle button when mobile sidebar is closed */}
+      {isMobile && !isOpen && (
+        <button
+          onClick={onToggle}
+          aria-label="Open sidebar"
+          style={{
+            position: 'fixed',
+            top: 'calc(8px + env(safe-area-inset-top, 0px))',
+            left: 'calc(6px + env(safe-area-inset-left, 0px))',
+            zIndex: 55,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            width: 36,
+            height: 36,
+            border: 'none',
+            background: 'rgba(255,255,255,0.8)',
+            cursor: 'pointer',
+            borderRadius: 8,
+            color: '#666',
+          }}
+          onMouseEnter={(e) => (e.currentTarget.style.background = '#e8e8e3')}
+          onMouseLeave={(e) => (e.currentTarget.style.background = 'rgba(255,255,255,0.8)')}
+        >
+          <SidebarLeftIcon style={{ width: 20, height: 20 }} />
+        </button>
+      )}
+      <div className="sidebar" style={sidebarStyle}>
       {/* Top bar — title + toggle */}
       <div
         style={{
           display: 'flex',
           alignItems: 'center',
           height: 36,
-          margin: '8px 6px',
+          margin: isMobile ? '8px 6px 8px' : 'calc(8px + env(safe-area-inset-top, 0px)) 6px 8px',
           flexShrink: 0,
         }}
       >
@@ -149,6 +151,7 @@ export default function Sidebar({
         </div>
       </div>
     </div>
+    </>
   )
 }
 
