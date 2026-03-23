@@ -133,7 +133,7 @@ export default function CassetteDiagram({ data }) {
   return (
     <div className="p-4 h-full overflow-auto flex flex-col gap-3 fade-in">
       <div className="flex items-baseline gap-3" style={{ marginTop: -20 }}>
-        <h2 className="font-semibold" style={{ color: '#6b7280', fontSize: 18 }}>
+        <h2 className="font-semibold" style={{ color: '#000', fontSize: 18 }}>
           AAV Cassette Design
         </h2>
         <span style={{ color: '#9ca3af', fontSize: 16 }}>

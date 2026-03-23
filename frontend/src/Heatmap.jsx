@@ -161,7 +161,7 @@ export default function Heatmap({ tissue, scoringData, interpretationData }) {
   return (
     <div className="p-4 h-full flex flex-col fade-in">
       <div className="flex items-baseline gap-3 mb-3">
-        <h2 className="font-semibold" style={{ color: '#6b7280', fontSize: 18 }}>
+        <h2 className="font-semibold" style={{ color: '#000', fontSize: 18 }}>
           Tissue Specificity — Top Candidate
         </h2>
         {specRatio != null && (

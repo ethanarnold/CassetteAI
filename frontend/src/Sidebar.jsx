@@ -34,7 +34,7 @@ export default function Sidebar({
             style={{
               fontWeight: 600,
               fontSize: 15,
-              color: '#333',
+              color: '#000',
               marginLeft: 6,
               whiteSpace: 'nowrap',
             }}
