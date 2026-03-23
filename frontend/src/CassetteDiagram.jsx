@@ -102,7 +102,7 @@ function EnhancerSequenceBox({ sequence }) {
   )
 }
 
-export default function CassetteDiagram({ data }) {
+export default function CassetteDiagram({ data, isMobile }) {
   /* No data → render nothing (blank cream space) */
   if (!data) return null
 
@@ -132,18 +132,16 @@ export default function CassetteDiagram({ data }) {
 
   return (
     <div className="p-4 h-full overflow-auto flex flex-col gap-3 fade-in">
-      <div className="flex items-baseline gap-3" style={{ marginTop: -20 }}>
+      <div className="flex items-baseline gap-3">
         <h2 className="font-semibold" style={{ color: '#000', fontSize: 18 }}>
           AAV Cassette Design
         </h2>
-        <span style={{ color: '#9ca3af', fontSize: 16 }}>
-          5'ITR — Enhancer — Promoter — Transgene — polyA — 3'ITR
-        </span>
       </div>
 
+      <div style={{ overflowX: isMobile ? 'auto' : 'hidden' }}>
       <svg
         viewBox={`0 0 ${SVG_W} ${SVG_H}`}
-        style={{ width: '100%', overflow: 'visible', marginTop: -30 }}
+        style={{ width: '100%', minWidth: isMobile ? 700 : undefined, overflow: 'visible' }}
         aria-label="AAV cassette diagram"
       >
         <defs>
@@ -233,7 +231,7 @@ export default function CassetteDiagram({ data }) {
           x={SVG_W / 2}
           y={BAR_TEXT_Y}
           textAnchor="middle"
-          fontSize="11"
+          fontSize={isMobile ? 15 : 11}
           fill={isOverLimit ? '#dc2626' : '#16a34a'}
         >
           Total: {total_bp.toLocaleString()} bp / {aav_limit_bp.toLocaleString()} bp AAV limit
@@ -242,6 +240,7 @@ export default function CassetteDiagram({ data }) {
             : `  ·  ⚠️ ${Math.abs(headroom_bp).toLocaleString()} bp over limit`}
         </text>
       </svg>
+      </div>
 
       {/* Warning message */}
       {warning && (

@@ -107,7 +107,7 @@ function CustomTooltip({ active, payload }) {
   )
 }
 
-export default function Heatmap({ tissue, scoringData, interpretationData }) {
+export default function Heatmap({ tissue, scoringData, interpretationData, isMobile }) {
   const barData = useMemo(() => {
     if (!scoringData || scoringData.length === 0) return null
 
@@ -161,63 +161,65 @@ export default function Heatmap({ tissue, scoringData, interpretationData }) {
   const specRatio = interpretationData?.ranking?.[0]?.specificity_ratio
 
   return (
-    <div className="p-4 h-full flex flex-col fade-in">
-      <div className="flex items-baseline gap-3 mb-3">
+    <div className={`${isMobile ? 'p-0' : 'p-4'} h-full flex flex-col fade-in`}>
+      <div className="flex items-baseline gap-3 mb-3" style={isMobile ? { padding: '8px 8px 0' } : undefined}>
         <h2 className="font-semibold" style={{ color: '#000', fontSize: 18 }}>
-          Tissue Specificity — Top Candidate
+          Tissue Specificity
         </h2>
         {specRatio != null && (
-          <span style={{ color: '#9ca3af', fontSize: 16 }}>
+          <span style={{ color: '#9ca3af', fontSize: isMobile ? 12 : 16 }}>
             <span style={{ color: '#0891b2' }}>★</span> specificity{' '}
             <span style={{ color: '#6b7280' }}>{specRatio.toFixed(2)}x</span>
           </span>
         )}
       </div>
 
-      <div style={{ flex: 1, minHeight: 0 }}>
-        <ResponsiveContainer width="100%" height="100%">
-          <BarChart
-            data={barData}
-            margin={{ top: 8, right: 8, bottom: 10, left: 0 }}
-          >
-            <XAxis
-              dataKey="name"
-              tick={{ fill: '#6b7280', fontSize: 9 }}
-              axisLine={{ stroke: '#e5e7eb' }}
-              tickLine={false}
-              angle={-45}
-              textAnchor="end"
-              interval={0}
-              height={60}
-            />
-            <YAxis
-              tick={{ fill: '#9ca3af', fontSize: 10 }}
-              axisLine={false}
-              tickLine={false}
-              width={40}
-            />
-            <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(0,0,0,0.03)' }} />
-            <Bar dataKey="score" radius={[2, 2, 0, 0]} maxBarSize={20} shape={(props) => {
-              const { x, y, width, height, index } = props
-              const entry = barData[index]
-              const fill = CATEGORY_COLORS[entry.category]
-              const op = entry.isTarget ? 1 : 0.6
-              return (
-                <g>
-                  <rect x={x} y={y} width={width} height={height} fill={fill} opacity={op} rx={2} ry={2} />
-                  {entry.isTarget && (
-                    <path
-                      d={`M${x},${y + height} L${x},${y + 2} Q${x},${y} ${x + 2},${y} L${x + width - 2},${y} Q${x + width},${y} ${x + width},${y + 2} L${x + width},${y + height}`}
-                      fill="none"
-                      stroke={HIGHLIGHT_BORDER}
-                      strokeWidth={2}
-                    />
-                  )}
-                </g>
-              )
-            }} />
-          </BarChart>
-        </ResponsiveContainer>
+      <div style={{ flex: 1, minHeight: 0, overflowX: isMobile ? 'auto' : 'hidden', overflowY: 'hidden' }}>
+        <div style={{ width: isMobile ? 700 : '100%', height: '100%' }}>
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart
+              data={barData}
+              margin={{ top: 8, right: 8, bottom: 10, left: 0 }}
+            >
+              <XAxis
+                dataKey="name"
+                tick={{ fill: '#6b7280', fontSize: 9 }}
+                axisLine={{ stroke: '#e5e7eb' }}
+                tickLine={false}
+                angle={-45}
+                textAnchor="end"
+                interval={0}
+                height={60}
+              />
+              <YAxis
+                tick={{ fill: '#9ca3af', fontSize: 10 }}
+                axisLine={false}
+                tickLine={false}
+                width={40}
+              />
+              <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(0,0,0,0.03)' }} />
+              <Bar dataKey="score" radius={[2, 2, 0, 0]} maxBarSize={20} shape={(props) => {
+                const { x, y, width, height, index } = props
+                const entry = barData[index]
+                const fill = CATEGORY_COLORS[entry.category]
+                const op = entry.isTarget ? 1 : 0.6
+                return (
+                  <g>
+                    <rect x={x} y={y} width={width} height={height} fill={fill} opacity={op} rx={2} ry={2} />
+                    {entry.isTarget && (
+                      <path
+                        d={`M${x},${y + height} L${x},${y + 2} Q${x},${y} ${x + 2},${y} L${x + width - 2},${y} Q${x + width},${y} ${x + width},${y + 2} L${x + width},${y + height}`}
+                        fill="none"
+                        stroke={HIGHLIGHT_BORDER}
+                        strokeWidth={2}
+                      />
+                    )}
+                  </g>
+                )
+              }} />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
       </div>
     </div>
   )
