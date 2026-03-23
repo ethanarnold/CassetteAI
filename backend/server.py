@@ -68,8 +68,8 @@ async def chat_name(request: ChatNameRequest) -> dict[str, str]:
     response = await client.messages.create(
         model="claude-sonnet-4-20250514",
         max_tokens=20,
-        system="Generate a 2-5 word title for this chat. Return ONLY the title.",
-        messages=[{"role": "user", "content": request.prompt}],
+        system="You are a chat title generator. Given a user message, output a concise 2-5 word title summarizing the topic. Output ONLY the title, no quotes, no explanation.",
+        messages=[{"role": "user", "content": f"Generate a title for a chat that starts with this message:\n\n{request.prompt}"}],
     )
     name = response.content[0].text.strip().strip('"').strip("'")
     return {"name": name}

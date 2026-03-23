@@ -4,15 +4,21 @@
  */
 export async function generateChatName(prompt) {
   try {
+    console.log('[chat-name] requesting name for prompt:', prompt?.slice(0, 80))
     const res = await fetch('/api/chat-name', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ prompt }),
     })
-    if (!res.ok) return null
+    if (!res.ok) {
+      console.warn('[chat-name] request failed:', res.status, res.statusText)
+      return null
+    }
     const data = await res.json()
+    console.log('[chat-name] got name:', data.name)
     return data.name || null
-  } catch {
+  } catch (err) {
+    console.error('[chat-name] error:', err)
     return null
   }
 }

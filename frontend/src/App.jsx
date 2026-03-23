@@ -68,7 +68,7 @@ function LandingPage({ onNewChat }) {
 // ---------------------------------------------------------------------------
 // ChatPage — renders at /chat/:chatId
 // ---------------------------------------------------------------------------
-function ChatPage({ refreshIndex }) {
+function ChatPage({ refreshIndex, chatIndex }) {
   const { chatId } = useParams()
   const [, navigate] = useLocation()
 
@@ -77,7 +77,10 @@ function ChatPage({ refreshIndex }) {
   const [results, setResults] = useState(stored.current?.results ?? null)
   const [messages, setMessages] = useState(stored.current?.messages ?? [])
   const [loading, setLoading] = useState(false)
-  const nameGenerated = useRef(false)
+  // Skip name generation if the chat already has a name
+  const nameGenerated = useRef(
+    !!chatIndex.find((c) => c.id === chatId)?.name
+  )
 
   // Read pending prompt from sessionStorage (landing → chat handoff)
   const [initialPrompt] = useState(() => {
@@ -106,12 +109,20 @@ function ChatPage({ refreshIndex }) {
   // Generate chat name after first user message appears
   useEffect(() => {
     if (nameGenerated.current || shouldRedirect) return
-    const firstUserMsg = messages.find((m) => m.role === 'user')
-    if (!firstUserMsg) return
+    const firstUserMsg = messages.find((m) => m.type === 'user')
+    if (!firstUserMsg) {
+      console.log('[chat-name] no user message yet, skipping')
+      return
+    }
     nameGenerated.current = true
     const prompt = firstUserMsg.content || initialPrompt
-    if (!prompt) return
+    console.log('[chat-name] first user msg found, content:', firstUserMsg.content?.slice(0, 80), '| initialPrompt:', initialPrompt?.slice(0, 80), '| resolved prompt:', prompt?.slice(0, 80))
+    if (!prompt) {
+      console.warn('[chat-name] prompt is falsy, skipping API call')
+      return
+    }
     generateChatName(prompt).then((name) => {
+      console.log('[chat-name] result:', name)
       if (name) {
         updateChatName(chatId, name)
         refreshIndex()
@@ -265,7 +276,7 @@ export default function App() {
             <LandingPage onNewChat={handleNewChat} />
           </Route>
           <Route path="/chat/:chatId">
-            <ChatPage refreshIndex={refreshIndex} />
+            <ChatPage key={activeChatId} refreshIndex={refreshIndex} chatIndex={chatIndex} />
           </Route>
           <Route>
             <Redirect to="/" />
