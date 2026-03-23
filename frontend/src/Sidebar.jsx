@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useRef, useEffect, useCallback } from 'react'
 import { PlusIcon, XMarkIcon } from '@heroicons/react/24/outline'
 import { SidebarLeftIcon } from '@sidekickicons/react/24/outline'
 
@@ -19,29 +19,52 @@ export default function Sidebar({
       className="sidebar"
       style={{ width: isOpen ? EXPANDED_W : COLLAPSED_W }}
     >
-      {/* Toggle button — always visible */}
-      <button
-        onClick={onToggle}
-        aria-label={isOpen ? 'Close sidebar' : 'Open sidebar'}
+      {/* Top bar — title + toggle */}
+      <div
         style={{
           display: 'flex',
           alignItems: 'center',
-          justifyContent: 'center',
-          width: 36,
           height: 36,
-          border: 'none',
-          background: 'transparent',
-          cursor: 'pointer',
-          borderRadius: 8,
-          color: '#666',
           margin: '8px 6px',
           flexShrink: 0,
         }}
-        onMouseEnter={(e) => (e.currentTarget.style.background = '#e8e8e3')}
-        onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
       >
-        <SidebarLeftIcon style={{ width: 20, height: 20 }} />
-      </button>
+        {isOpen && (
+          <span
+            style={{
+              fontWeight: 600,
+              fontSize: 15,
+              color: '#333',
+              marginLeft: 6,
+              whiteSpace: 'nowrap',
+            }}
+          >
+            CassetteAI
+          </span>
+        )}
+        <button
+          onClick={onToggle}
+          aria-label={isOpen ? 'Close sidebar' : 'Open sidebar'}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            width: 36,
+            height: 36,
+            border: 'none',
+            background: 'transparent',
+            cursor: 'pointer',
+            borderRadius: 8,
+            color: '#666',
+            marginLeft: 'auto',
+            flexShrink: 0,
+          }}
+          onMouseEnter={(e) => (e.currentTarget.style.background = '#e8e8e3')}
+          onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+        >
+          <SidebarLeftIcon style={{ width: 20, height: 20 }} />
+        </button>
+      </div>
 
       {/* Expanded content */}
       <div
@@ -92,13 +115,36 @@ export default function Sidebar({
 
 function ChatItem({ chat, isActive, onSelect, onDelete }) {
   const [hovered, setHovered] = useState(false)
+  const [showTooltip, setShowTooltip] = useState(false)
+  const nameRef = useRef(null)
+  const timerRef = useRef(null)
+
+  const isTruncated = useCallback(() => {
+    const el = nameRef.current
+    return el && el.scrollWidth > el.clientWidth
+  }, [])
+
+  const handleMouseEnter = () => {
+    setHovered(true)
+    timerRef.current = setTimeout(() => {
+      if (isTruncated()) setShowTooltip(true)
+    }, 1500)
+  }
+
+  const handleMouseLeave = () => {
+    setHovered(false)
+    setShowTooltip(false)
+    clearTimeout(timerRef.current)
+  }
+
+  useEffect(() => () => clearTimeout(timerRef.current), [])
 
   return (
     <div
       className={`sidebar-chat-item ${isActive ? 'active' : ''}`}
       onClick={onSelect}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
       style={{
         display: 'flex',
         alignItems: 'center',
@@ -112,7 +158,29 @@ function ChatItem({ chat, isActive, onSelect, onDelete }) {
         position: 'relative',
       }}
     >
+      {showTooltip && (
+        <div
+          style={{
+            position: 'absolute',
+            bottom: '100%',
+            left: 0,
+            marginBottom: 4,
+            padding: '4px 8px',
+            background: '#333',
+            color: '#fff',
+            fontSize: 12,
+            borderRadius: 6,
+            whiteSpace: 'nowrap',
+            pointerEvents: 'none',
+            zIndex: 10,
+          }}
+        >
+          {chat.name ?? 'New chat'}
+        </div>
+      )}
+
       <span
+        ref={nameRef}
         style={{
           flex: 1,
           overflow: 'hidden',
