@@ -551,11 +551,9 @@ export default function Chat({ onResults, hasStarted, onStart, messages, setMess
           const submitPrompt = (text) => {
             setExpandedPill(null)
             setHoverPlaceholder(null)
-            setInput(previewPrompts[text] || text)
-            setTimeout(() => {
-              const form = document.querySelector('form')
-              if (form) form.requestSubmit()
-            }, 0)
+            const prompt = previewPrompts[text] || text
+            setInput(prompt)
+            onStart(prompt)
           }
 
           return (
@@ -678,7 +676,7 @@ export default function Chat({ onResults, hasStarted, onStart, messages, setMess
   return (
     <div className="flex flex-col h-full">
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-3">
+      <div className="flex-1 overflow-y-auto p-4 space-y-3" style={{ paddingTop: 'calc(16px + env(safe-area-inset-top, 0px))' }}>
         {messages.map((msg, i) => {
           if (msg.type === 'user') return <UserBubble key={i} content={msg.content} />
           if (msg.type === 'thought')
@@ -717,7 +715,7 @@ export default function Chat({ onResults, hasStarted, onStart, messages, setMess
       </div>
 
       {/* Input */}
-      <form onSubmit={handleSubmit} style={{ padding: 16 }}>
+      <form onSubmit={handleSubmit} style={{ padding: '16px 16px calc(16px + env(safe-area-inset-bottom, 0px))' }}>
         <div
           style={{
             position: 'relative',
