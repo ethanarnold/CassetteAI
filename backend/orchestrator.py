@@ -181,6 +181,11 @@ _CLASSIFY_SYSTEM = (
     "previous results, or anything that is not a concrete design "
     "request), return:\n"
     '  {"type": "conversation"}\n\n'
+    "IMPORTANT: A design request must explicitly ask you to CREATE, "
+    "DESIGN, or GENERATE a new regulatory element for a specific tissue. "
+    "Questions ABOUT biology, terminology, previous results, or how "
+    "things work are ALWAYS conversation — even if they mention "
+    "promoters, enhancers, sequences, or tissues.\n\n"
     "Examples:\n"
     '- "Hello" -> {"type": "conversation"}\n'
     '- "What do you do?" -> {"type": "conversation"}\n'
@@ -189,6 +194,12 @@ _CLASSIFY_SYSTEM = (
     '- "Can you design something?" -> {"type": "conversation"}\n'
     '- "What do these results mean?" -> {"type": "conversation"}\n'
     '- "How can I use this enhancer?" -> {"type": "conversation"}\n'
+    '- "What does p promoter mean?" -> {"type": "conversation"}\n'
+    '- "What is an enhancer sequence?" -> {"type": "conversation"}\n'
+    '- "Explain the specificity ratio" -> {"type": "conversation"}\n'
+    '- "Why is HepG2 used for liver?" -> {"type": "conversation"}\n'
+    '- "What does this score mean?" -> {"type": "conversation"}\n'
+    '- "How does Sei scoring work?" -> {"type": "conversation"}\n'
     '- "Design a liver enhancer" -> {"type": "design", ...}\n'
     '- "I need an immune-specific regulatory element" -> {"type": "design", ...}\n'
     '- "Generate blood enhancers for AAV delivery" -> {"type": "design", ...}'
@@ -207,6 +218,32 @@ _CONVERSATION_SYSTEM = (
 )
 
 
+def _trim_history_for_classifier(
+    history: list[dict[str, str]] | None,
+    max_turns: int = 4,
+    max_chars_per_msg: int = 300,
+) -> list[dict[str, str]] | None:
+    """Return a lightweight slice of history for the classifier.
+
+    The classifier only needs enough context to decide design-vs-conversation.
+    Full design results, long interpretations, and old turns just add noise
+    and bias the classifier toward "design" after a pipeline run.
+    """
+    if not history:
+        return history
+    # Take only the most recent turns
+    recent = history[-max_turns:]
+    trimmed: list[dict[str, str]] = []
+    for m in recent:
+        content = m.get("content", "")
+        role = m.get("role", "user")
+        # Truncate long assistant messages (design results, interpretations)
+        if len(content) > max_chars_per_msg:
+            content = content[:max_chars_per_msg] + "..."
+        trimmed.append({"role": role, "content": content})
+    return trimmed
+
+
 async def _classify_and_parse(
     user_prompt: str,
     history: list[dict[str, str]] | None = None,
@@ -217,12 +254,13 @@ async def _classify_and_parse(
         {"type": "conversation"}
         {"type": "design", "target_tissue": str, "length_bp": int, "constraints": [str]}
 
-    Falls back to design with liver defaults if JSON parsing fails.
+    Falls back to conversation if JSON parsing fails.
     """
     client = get_anthropic_client()
     logger.info("Classifying message: %s", user_prompt)
 
-    messages = _build_messages(user_prompt, history)
+    trimmed = _trim_history_for_classifier(history)
+    messages = _build_messages(user_prompt, trimmed)
 
     response = await client.messages.create(
         model="claude-sonnet-4-20250514",
@@ -240,7 +278,11 @@ async def _classify_and_parse(
                 return json.loads(m.group(0))
             except json.JSONDecodeError:
                 pass
-    return {"type": "design", "target_tissue": "liver", "length_bp": 200, "constraints": []}
+    # Safe fallback: treat unparseable responses as conversation, not design.
+    # Running the full pipeline on a misclassification is far worse than
+    # giving a conversational reply to an actual design request (user can retry).
+    logger.warning("Classifier returned unparseable JSON, falling back to conversation: %s", raw)
+    return {"type": "conversation"}
 
 
 async def _stream_conversation(
