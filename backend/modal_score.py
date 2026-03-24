@@ -123,7 +123,7 @@ def _sc_projection(chromatin_preds, projvec: "np.ndarray") -> "np.ndarray":
 
     Args:
         chromatin_preds: (n, 21907) float array — Sei sigmoid outputs
-        projvec: (40, 21907) float array — loaded from projvec_targets.npy
+        projvec: (40, 21907) float array — sliced from projvec_targets.npy (61 rows on disk)
 
     Returns:
         (n, 40) float array of sequence class scores
@@ -179,6 +179,7 @@ def score_elements(sequences: list[str]) -> list[dict]:
     try:
         model = Sei(sequence_length=4096, n_genomic_features=21907)
         state_dict = torch.load(weights_path, map_location="cuda")
+        state_dict = {k.replace("module.model.", ""): v for k, v in state_dict.items()}
         model.load_state_dict(state_dict)
     except FileNotFoundError:
         raise RuntimeError(
@@ -193,7 +194,7 @@ def score_elements(sequences: list[str]) -> list[dict]:
         ) from exc
 
     try:
-        projvec = np.load(projvec_path)  # (40, 21907)
+        projvec = np.load(projvec_path)[:40]  # (61, 21907) on disk → slice to 40 named classes
     except FileNotFoundError:
         raise RuntimeError(
             f"Sei projection vectors not found at {projvec_path}. "
@@ -205,51 +206,59 @@ def score_elements(sequences: list[str]) -> list[dict]:
     model.eval()
     model = model.cuda()
 
-    results: list[dict] = []
-
+    # --- Validate all sequences upfront ---
     for seq in sequences:
         if len(seq) != _SEQ_LEN:
             raise ValueError(
                 f"Expected {_SEQ_LEN} bp sequences, got {len(seq)} bp: {seq[:20]}..."
             )
 
-        # Embed in flanking context → 4096 bp
+    n = len(sequences)
+
+    # --- Pre-compute all flanked sequences and one-hot encode as batches ---
+    fwd_batch = np.empty((n, 4, _CONTEXT_LEN), dtype=np.float32)
+    rev_batch = np.empty((n, 4, _CONTEXT_LEN), dtype=np.float32)
+
+    for i, seq in enumerate(sequences):
         seq_4096 = _make_flanked_seq(seq)
+        fwd_batch[i] = _one_hot(seq_4096)
+        rev_batch[i] = _one_hot(_reverse_complement(seq_4096))
 
-        # Forward strand
-        x_fwd = torch.from_numpy(_one_hot(seq_4096)).unsqueeze(0).cuda()  # (1,4,4096)
-        # Reverse complement strand
-        x_rev = torch.from_numpy(_one_hot(_reverse_complement(seq_4096))).unsqueeze(0).cuda()
+    # --- Chunked GPU forward passes ---
+    _BATCH_SIZE = 64
+    preds_fwd_all = np.empty((n, 21907), dtype=np.float32)
+    preds_rev_all = np.empty((n, 21907), dtype=np.float32)
 
-        with torch.no_grad():
-            preds_fwd = model(x_fwd).cpu().numpy()  # (1, 21907)
-            preds_rev = model(x_rev).cpu().numpy()  # (1, 21907)
+    with torch.no_grad():
+        for start in range(0, n, _BATCH_SIZE):
+            end = min(start + _BATCH_SIZE, n)
+            x_fwd = torch.from_numpy(fwd_batch[start:end]).cuda()
+            x_rev = torch.from_numpy(rev_batch[start:end]).cuda()
+            preds_fwd_all[start:end] = model(x_fwd).cpu().numpy()
+            preds_rev_all[start:end] = model(x_rev).cpu().numpy()
 
-        # Average fwd + rev-comp (non_strand_specific: mean)
-        preds = (preds_fwd + preds_rev) / 2.0  # (1, 21907)
+    # --- Vectorized post-processing ---
+    preds_avg = (preds_fwd_all + preds_rev_all) / 2.0  # (N, 21907)
+    sc_scores_all = _sc_projection(preds_avg, projvec)  # (N, 40)
 
-        # Project onto 40 sequence class vectors
-        sc_scores = _sc_projection(preds, projvec)[0]  # (40,)
+    top_indices = np.argmax(sc_scores_all, axis=1)  # (N,)
+    sorted_scores = np.sort(sc_scores_all, axis=1)[:, ::-1]  # (N, 40) descending
+    seconds = np.where(sorted_scores[:, 1] > 0, sorted_scores[:, 1], 1e-9)
+    specificity_ratios = sorted_scores[:, 0] / seconds  # (N,)
 
+    # --- Build results list ---
+    results: list[dict] = []
+    for i, seq in enumerate(sequences):
         sei_scores = {
-            SEI_SEQUENCE_CLASS_NAMES[i]: float(sc_scores[i])
-            for i in range(len(SEI_SEQUENCE_CLASS_NAMES))
+            SEI_SEQUENCE_CLASS_NAMES[j]: float(sc_scores_all[i, j])
+            for j in range(len(SEI_SEQUENCE_CLASS_NAMES))
         }
-
-        top_idx = int(np.argmax(sc_scores))
-        top_class = SEI_SEQUENCE_CLASS_NAMES[top_idx]
-
-        # Specificity ratio: top score / second-highest score
-        sorted_scores = np.sort(sc_scores)[::-1]
-        second = sorted_scores[1] if sorted_scores[1] > 0 else 1e-9
-        specificity_ratio = float(sorted_scores[0] / second)
-
         results.append(
             {
                 "sequence": seq,
                 "sei_scores": sei_scores,
-                "top_class": top_class,
-                "specificity_ratio": round(specificity_ratio, 4),
+                "top_class": SEI_SEQUENCE_CLASS_NAMES[int(top_indices[i])],
+                "specificity_ratio": round(float(specificity_ratios[i]), 4),
             }
         )
 

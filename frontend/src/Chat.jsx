@@ -7,104 +7,77 @@ import dnaHelixAnimation from './assets/dna-helix.json'
 import dnaHelixThickAnimation from './assets/dna-helix-thick.json'
 
 // ---------------------------------------------------------------------------
-// Dwell times (ms) — minimum display time before revealing the next item.
-// On live runs, natural API latency fills most of this.
-// ---------------------------------------------------------------------------
-const THOUGHT_DWELL = {
-  parsing: 5000,
-  designing: 10000,
-  generating: 20000,
-  scoring: 20000,
-  interpreting: 10000,
-}
-const MESSAGE_DWELL = 800
-
-// ---------------------------------------------------------------------------
-// useMessageQueue — queues backend events and reveals them with dwell timers.
+// useMessageQueue — queues backend events and reveals them immediately.
 // Operates directly on the parent's setMessages so state survives remounts
 // (Chat remounts when transitioning from landing → active layout).
 // ---------------------------------------------------------------------------
 function useMessageQueue(setMessages) {
-  const queueRef = useRef([])
-  const timerRef = useRef(null)
-  const drainingRef = useRef(false)
-
-  const drain = useCallback(() => {
-    if (queueRef.current.length === 0) {
-      drainingRef.current = false
-      return
-    }
-    drainingRef.current = true
-
-    const next = queueRef.current.shift()
-
-    // Fire side-effect callback if present (e.g. showing plots)
-    if (next.onShow) next.onShow()
-
-    // Resolve the previous thought's spinner, then append the new item
-    const item = { ...next }
-    delete item.onShow
-    setMessages((prev) => {
-      const updated = prev.map((m) =>
-        m.type === 'thought' && !m.resolved ? { ...m, resolved: true } : m
-      )
-      return [...updated, item]
-    })
-
-    // Determine dwell for this item before showing the next
-    let dwell = 0
-    if (next.type === 'thought') {
-      dwell = THOUGHT_DWELL[next.stage] || 3000
-    } else if (next.type === 'message') {
-      dwell = MESSAGE_DWELL
-    }
-
-    timerRef.current = setTimeout(drain, dwell)
-  }, [setMessages])
-
-  const enqueue = useCallback(
+  const show = useCallback(
     (event) => {
-      queueRef.current.push(event)
-      if (!drainingRef.current) {
-        drain()
+      const item = { ...event }
+      if (item.onShow) {
+        item.onShow()
+        delete item.onShow
       }
-    },
-    [drain]
-  )
+      if (item.type === 'thought') item.startedAt = Date.now()
 
-  const addDirect = useCallback(
-    (item) => {
-      // Bypass queue — immediate display (user messages, errors)
-      setMessages((prev) => [...prev, item])
+      setMessages((prev) => {
+        const now = Date.now()
+        const updated = prev.map((m) =>
+          m.type === 'thought' && !m.resolved
+            ? { ...m, resolved: true, elapsed: now - (m.startedAt || now) }
+            : m
+        )
+        return [...updated, item]
+      })
     },
     [setMessages]
   )
 
-  const isIdle = useCallback(() => {
-    return queueRef.current.length === 0 && !drainingRef.current
-  }, [])
+  const addDirect = useCallback(
+    (item) => setMessages((prev) => [...prev, item]),
+    [setMessages]
+  )
+
+  const isIdle = useCallback(() => true, [])
 
   const flush = useCallback(() => {
-    // Resolve any remaining thoughts and clear timer
-    if (timerRef.current) clearTimeout(timerRef.current)
-    timerRef.current = null
-    drainingRef.current = false
-    queueRef.current = []
-    setMessages((prev) =>
-      prev.map((m) =>
-        m.type === 'thought' && !m.resolved ? { ...m, resolved: true } : m
+    setMessages((prev) => {
+      const now = Date.now()
+      return prev.map((m) =>
+        m.type === 'thought' && !m.resolved
+          ? { ...m, resolved: true, elapsed: now - (m.startedAt || now) }
+          : m
       )
-    )
+    })
   }, [setMessages])
 
-  // Cleanup on unmount
-  useEffect(() => {
-    return () => {
-      if (timerRef.current) clearTimeout(timerRef.current)
-    }
-  }, [])
+  return { enqueue: show, addDirect, isIdle, flush }
+}
 
-  return { enqueue, addDirect, isIdle, flush }
+// ---------------------------------------------------------------------------
+// Elapsed timer helpers
+// ---------------------------------------------------------------------------
+
+function formatElapsed(ms) {
+  const totalSec = Math.floor(ms / 1000)
+  const min = Math.floor(totalSec / 60)
+  const sec = totalSec % 60
+  return `${min}:${sec.toString().padStart(2, '0')}`
+}
+
+function useElapsedTimer(startedAt, resolved, elapsed) {
+  const [now, setNow] = useState(Date.now)
+
+  useEffect(() => {
+    if (resolved || !startedAt) return
+    const id = setInterval(() => setNow(Date.now()), 1000)
+    return () => clearInterval(id)
+  }, [startedAt, resolved])
+
+  if (!startedAt) return null
+  if (resolved) return formatElapsed(elapsed || 0)
+  return formatElapsed(now - startedAt)
 }
 
 // ---------------------------------------------------------------------------
@@ -124,7 +97,9 @@ function DnaSpinner({ static: isStatic } = {}) {
   )
 }
 
-function ThoughtBubble({ message, resolvedMessage, isActive }) {
+function ThoughtBubble({ message, resolvedMessage, isActive, startedAt, elapsed }) {
+  const timer = useElapsedTimer(startedAt, !isActive, elapsed)
+
   return (
     <div className="flex justify-start">
       <div
@@ -135,7 +110,11 @@ function ThoughtBubble({ message, resolvedMessage, isActive }) {
           lineHeight: 1.6,
         }}
       >
-        <span>{isActive ? message : (resolvedMessage || message)}</span>
+        {isActive ? (
+          <span>{message} <span style={{ fontVariantNumeric: 'tabular-nums' }}>{timer}</span></span>
+        ) : (
+          <span>{(resolvedMessage || message).replace(/\.\s*$/, '')}{timer ? `. Took ${timer}.` : '.'}</span>
+        )}
       </div>
     </div>
   )
@@ -686,6 +665,8 @@ export default function Chat({ onResults, hasStarted, onStart, messages, setMess
                 message={msg.message}
                 resolvedMessage={msg.resolvedMessage}
                 isActive={!msg.resolved}
+                startedAt={msg.startedAt}
+                elapsed={msg.elapsed}
               />
             )
           if (msg.type === 'message') {
