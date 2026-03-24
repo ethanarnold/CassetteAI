@@ -123,7 +123,7 @@ def _sc_projection(chromatin_preds, projvec: "np.ndarray") -> "np.ndarray":
 
     Args:
         chromatin_preds: (n, 21907) float array — Sei sigmoid outputs
-        projvec: (40, 21907) float array — loaded from projvec_targets.npy
+        projvec: (40, 21907) float array — sliced from projvec_targets.npy (61 rows on disk)
 
     Returns:
         (n, 40) float array of sequence class scores
@@ -179,6 +179,7 @@ def score_elements(sequences: list[str]) -> list[dict]:
     try:
         model = Sei(sequence_length=4096, n_genomic_features=21907)
         state_dict = torch.load(weights_path, map_location="cuda")
+        state_dict = {k.replace("module.model.", ""): v for k, v in state_dict.items()}
         model.load_state_dict(state_dict)
     except FileNotFoundError:
         raise RuntimeError(
@@ -193,7 +194,7 @@ def score_elements(sequences: list[str]) -> list[dict]:
         ) from exc
 
     try:
-        projvec = np.load(projvec_path)  # (40, 21907)
+        projvec = np.load(projvec_path)[:40]  # (61, 21907) on disk → slice to 40 named classes
     except FileNotFoundError:
         raise RuntimeError(
             f"Sei projection vectors not found at {projvec_path}. "
