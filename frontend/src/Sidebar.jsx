@@ -37,6 +37,7 @@ export default function Sidebar({
         <button
           onClick={onToggle}
           aria-label="Open sidebar"
+          className="glass"
           style={{
             position: 'fixed',
             top: 'calc(8px + env(safe-area-inset-top, 0px))',
@@ -47,14 +48,11 @@ export default function Sidebar({
             justifyContent: 'center',
             width: 36,
             height: 36,
-            border: 'none',
-            background: 'rgba(255,255,255,0.8)',
+            borderRadius: '50%',
             cursor: 'pointer',
-            borderRadius: 8,
             color: '#666',
+            padding: 0,
           }}
-          onMouseEnter={(e) => (e.currentTarget.style.background = '#e8e8e3')}
-          onMouseLeave={(e) => (e.currentTarget.style.background = 'rgba(255,255,255,0.8)')}
         >
           <SidebarLeftIcon style={{ width: 20, height: 20 }} />
         </button>

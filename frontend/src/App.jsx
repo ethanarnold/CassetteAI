@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from 'react'
 import { Switch, Route, useLocation, useParams, useRoute, Redirect } from 'wouter'
-import { ChartBarSquareIcon, XMarkIcon } from '@heroicons/react/24/outline'
+import { ChartBarIcon, XMarkIcon } from '@heroicons/react/24/outline'
 import Chat from './Chat.jsx'
 import Heatmap from './Heatmap.jsx'
 import CassetteDiagram from './CassetteDiagram.jsx'
@@ -272,6 +272,7 @@ function ChatPage({ refreshIndex, chatIndex, isMobile }) {
       {isMobile && results && !graphPanelOpen && (
         <button
           onClick={handleToggleGraphPanel}
+          className="glass"
           style={{
             position: 'fixed',
             top: 'calc(8px + env(safe-area-inset-top, 0px))',
@@ -279,16 +280,15 @@ function ChatPage({ refreshIndex, chatIndex, isMobile }) {
             zIndex: 50,
             width: 36,
             height: 36,
-            borderRadius: 8,
-            border: 'none',
-            background: 'rgba(255,255,255,0.8)',
+            borderRadius: '50%',
             cursor: 'pointer',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
+            padding: 0,
           }}
         >
-          <ChartBarSquareIcon style={{ width: 20, height: 20, color: '#1a1a1a' }} />
+          <ChartBarIcon style={{ width: 20, height: 20, color: '#666' }} />
         </button>
       )}
 
