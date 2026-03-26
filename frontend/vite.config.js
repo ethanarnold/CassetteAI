@@ -10,7 +10,7 @@ export default defineConfig({
   server: {
     proxy: {
       '/api': {
-        target: 'http://localhost:8001',
+        target: 'http://localhost:8000',
         // Disable response buffering so SSE events stream token-by-token
         // instead of arriving in large chunks.
         configure: (proxy) => {

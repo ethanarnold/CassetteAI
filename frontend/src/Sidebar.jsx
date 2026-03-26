@@ -105,6 +105,32 @@ export default function Sidebar({
         </button>
       </div>
 
+      {/* Collapsed new-chat button (desktop only) */}
+      {!isOpen && !isMobile && (
+        <button
+          onClick={onNewChat}
+          aria-label="New chat"
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            width: 36,
+            height: 36,
+            margin: '0 auto 8px',
+            border: 'none',
+            background: 'transparent',
+            cursor: 'pointer',
+            borderRadius: 8,
+            color: '#666',
+            padding: 0,
+          }}
+          onMouseEnter={(e) => (e.currentTarget.style.background = '#e8e8e3')}
+          onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+        >
+          <PlusIcon style={{ width: 20, height: 20 }} />
+        </button>
+      )}
+
       {/* Expanded content */}
       <div
         className="sidebar-content"
@@ -134,6 +160,11 @@ export default function Sidebar({
           <PlusIcon style={{ width: 16, height: 16 }} />
           New chat
         </button>
+
+        {/* Section label */}
+        <div style={{ padding: '4px 20px 4px', fontSize: 12, color: '#999', fontWeight: 500 }}>
+          Recents
+        </div>
 
         {/* Chat list */}
         <div style={{ flex: 1, overflowY: 'auto', padding: '0 8px' }}>
