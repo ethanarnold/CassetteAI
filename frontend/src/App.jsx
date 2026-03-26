@@ -176,7 +176,7 @@ function ChatPage({ refreshIndex, chatIndex, isMobile }) {
         <div
           className="fade-in"
           style={{
-            width: isMobile ? '100%' : '40%',
+            width: isMobile ? '100%' : 480,
             flexShrink: 0,
             display: 'flex',
             flexDirection: 'column',

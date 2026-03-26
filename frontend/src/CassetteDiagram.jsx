@@ -12,7 +12,7 @@ import { useState } from 'react'
 const ELEMENT_COLORS = {
   "5'ITR":      '#94a3b8',
   "3'ITR":      '#94a3b8',
-  enhancer:     '#0891b2',
+  enhancer:     '#002FA7',
   minTBG:       '#3b82f6',
   minCMV:       '#3b82f6',
   transgene:    '#7c3aed',
@@ -29,14 +29,6 @@ const ELEMENT_LABELS = {
   bGH_polyA:  'bGH polyA',
 }
 
-const LEGEND_ITEMS = [
-  { color: '#94a3b8', label: 'ITRs' },
-  { color: '#0891b2', label: 'Enhancer (designed)' },
-  { color: '#3b82f6', label: 'Minimal promoter' },
-  { color: '#7c3aed', label: 'Transgene' },
-  { color: '#d97706', label: 'bGH polyA' },
-]
-
 function getColor(name) {
   return ELEMENT_COLORS[name] ?? '#9ca3af'
 }
@@ -47,15 +39,15 @@ function getLabel(name) {
 
 const SVG_W = 860
 // Y constants
-const LABEL_Y    = 42   // centre of element name labels
-const RECT_Y     = 52   // top of coloured rectangles
+const LABEL_Y    = 12   // centre of element name labels
+const RECT_Y     = 22   // top of coloured rectangles
 const RECT_H     = 50
 const RECT_BOT   = RECT_Y + RECT_H          // 102
 const BP_Y       = RECT_BOT + 14            // 116
-const BAR_Y      = BP_Y + 14               // 130
+const BAR_Y      = BP_Y + 16               // 132
 const BAR_H      = 12
-const BAR_TEXT_Y = BAR_Y + BAR_H + 14      // 156
-const SVG_H      = BAR_TEXT_Y + 10         // 166
+const BAR_TEXT_Y = BAR_Y + BAR_H + 16      // 160
+const SVG_H      = BAR_TEXT_Y + 12         // 172
 
 const DRAW_X = 16
 const DRAW_W = SVG_W - 32
@@ -73,7 +65,7 @@ function EnhancerSequenceBox({ sequence }) {
   return (
     <div
       className="glass rounded-lg p-3 text-xs font-mono"
-      style={{ color: '#0891b2', borderRadius: 12, position: 'relative' }}
+      style={{ color: '#002FA7', borderRadius: 12, position: 'relative' }}
     >
       <div className="flex items-center justify-between mb-1">
         <span style={{ color: '#9ca3af', fontFamily: 'inherit' }}>
@@ -144,16 +136,6 @@ export default function CassetteDiagram({ data, isMobile }) {
         style={{ width: '100%', minWidth: isMobile ? 700 : undefined, overflow: 'visible' }}
         aria-label="AAV cassette diagram"
       >
-        <defs>
-          {/* Glow filter for the designed enhancer element */}
-          <filter id="enhancer-glow" x="-20%" y="-40%" width="140%" height="180%">
-            <feGaussianBlur stdDeviation="4" result="blur" />
-            <feMerge>
-              <feMergeNode in="blur" />
-              <feMergeNode in="SourceGraphic" />
-            </feMerge>
-          </filter>
-        </defs>
 
         {rects.map((r, i) => {
           const isEnhancer = r.name === 'enhancer'
@@ -169,7 +151,7 @@ export default function CassetteDiagram({ data, isMobile }) {
                 textAnchor="middle"
                 dominantBaseline="middle"
                 fontSize="13"
-                fill={isEnhancer ? '#0891b2' : '#374151'}
+                fill={isEnhancer ? '#002FA7' : '#374151'}
                 fontWeight={isEnhancer ? 'bold' : 500}
                 style={{ userSelect: 'none' }}
               >
@@ -184,7 +166,6 @@ export default function CassetteDiagram({ data, isMobile }) {
                 height={RECT_H}
                 fill={color}
                 rx="3"
-                filter={isEnhancer ? 'url(#enhancer-glow)' : undefined}
               />
 
               {/* Thin separator line between adjacent rects */}
@@ -204,7 +185,7 @@ export default function CassetteDiagram({ data, isMobile }) {
                 x={r.cx}
                 y={BP_Y}
                 textAnchor="middle"
-                fontSize="9"
+                fontSize="13"
                 fill="#9ca3af"
                 style={{ userSelect: 'none' }}
               >
@@ -231,7 +212,7 @@ export default function CassetteDiagram({ data, isMobile }) {
           x={SVG_W / 2}
           y={BAR_TEXT_Y}
           textAnchor="middle"
-          fontSize={isMobile ? 15 : 11}
+          fontSize={isMobile ? 17 : 13}
           fill={isOverLimit ? '#dc2626' : '#16a34a'}
         >
           Total: {total_bp.toLocaleString()} bp / {aav_limit_bp.toLocaleString()} bp AAV limit
@@ -252,21 +233,6 @@ export default function CassetteDiagram({ data, isMobile }) {
         </div>
       )}
 
-      {/* Color legend — glass card */}
-      <div
-        className="glass flex flex-wrap gap-4 text-xs"
-        style={{ color: '#6b7280', padding: '8px 14px', borderRadius: 12 }}
-      >
-        {LEGEND_ITEMS.map((item) => (
-          <div key={item.label} className="flex items-center gap-1.5">
-            <div
-              className="rounded-sm shrink-0"
-              style={{ width: 12, height: 12, background: item.color }}
-            />
-            <span>{item.label}</span>
-          </div>
-        ))}
-      </div>
 
       {/* Enhancer sequence — full with copy button */}
       {enhancer_sequence && (

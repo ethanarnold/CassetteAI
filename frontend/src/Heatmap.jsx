@@ -20,7 +20,7 @@ const SEI_CLASSES = [
   { key: 'E5 B-cell-like',            short: 'B-cell',      category: 'enhancer' },
   { key: 'E7 Monocyte / Macrophage',  short: 'Mono/Mac',    category: 'enhancer' },
 
-  { key: 'E9 Liver / Intestine',      short: 'Liver/Int',   category: 'enhancer' },
+  { key: 'E9 Liver / Intestine',      short: 'Liver',   category: 'enhancer' },
   { key: 'E10 Brain',                 short: 'Brain',       category: 'enhancer' },
   { key: 'E11 T-cell',                short: 'T-cell',      category: 'enhancer' },
   { key: 'E12 Erythroblast-like',     short: 'Erythro',     category: 'enhancer' },
@@ -57,10 +57,19 @@ const CATEGORY_COLORS = {
   enhancer:        '#3b82f6', // blue
   promoter:        '#a855f7', // purple
   tf:              '#f59e0b', // amber
-  transcription:   '#6b7280', // gray
+  transcription:   '#14b8a6', // teal
   polycomb:        '#ef4444', // red
   heterochromatin:  '#64748b', // slate
 }
+
+const HISTOGRAM_LEGEND = [
+  { color: '#3b82f6', label: 'Enhancer' },
+  { color: '#a855f7', label: 'Promoter / CTCF' },
+  { color: '#f59e0b', label: 'Transcription factor' },
+  { color: '#14b8a6', label: 'Transcription' },
+  { color: '#ef4444', label: 'Polycomb' },
+  { color: '#64748b', label: 'Heterochromatin' },
+]
 
 /** Always highlight: promoter/CTCF are desirable for any functional element */
 const UNIVERSAL_HIGHLIGHT = [
@@ -96,10 +105,10 @@ function CustomTooltip({ active, payload }) {
     >
       <div style={{ fontWeight: 600, marginBottom: 2 }}>{d.fullName}</div>
       <div>
-        Score: <span style={{ color: '#0891b2', fontWeight: 600 }}>{d.score.toFixed(4)}</span>
+        Score: <span style={{ color: '#002FA7', fontWeight: 600 }}>{d.score.toFixed(4)}</span>
       </div>
       {d.isTarget && (
-        <div style={{ color: '#0891b2', fontSize: 11, marginTop: 2 }}>
+        <div style={{ color: '#002FA7', fontSize: 11, marginTop: 2 }}>
           ★ on-target class
         </div>
       )}
@@ -162,16 +171,19 @@ export default function Heatmap({ tissue, scoringData, interpretationData, isMob
 
   return (
     <div className={`${isMobile ? 'p-0' : 'p-4'} h-full flex flex-col fade-in`}>
-      <div className="flex items-baseline gap-3 mb-3" style={isMobile ? { padding: '8px 8px 0' } : undefined}>
+      <div className="flex items-baseline gap-3 mb-1" style={isMobile ? { padding: '8px 8px 0' } : undefined}>
         <h2 className="font-semibold" style={{ color: '#000', fontSize: 18 }}>
           Tissue Specificity
         </h2>
         {specRatio != null && (
           <span style={{ color: '#9ca3af', fontSize: isMobile ? 12 : 16 }}>
-            <span style={{ color: '#0891b2' }}>★</span> specificity{' '}
+            <span style={{ color: '#002FA7' }}>★</span> specificity{' '}
             <span style={{ color: '#6b7280' }}>{specRatio.toFixed(2)}x</span>
           </span>
         )}
+      </div>
+      <div style={{ fontSize: 11, color: '#9ca3af', marginBottom: 6, ...(isMobile ? { paddingLeft: 8 } : {}) }}>
+        <span style={{ color: '#002FA7' }}>★</span> on-target classes — want these high
       </div>
 
       <div style={{ flex: 1, minHeight: 0, overflowX: isMobile ? 'auto' : 'hidden', overflowY: 'hidden' }}>
@@ -179,11 +191,11 @@ export default function Heatmap({ tissue, scoringData, interpretationData, isMob
           <ResponsiveContainer width="100%" height="100%">
             <BarChart
               data={barData}
-              margin={{ top: 8, right: 8, bottom: 10, left: 0 }}
+              margin={{ top: 16, right: 8, bottom: 10, left: 0 }}
             >
               <XAxis
                 dataKey="name"
-                tick={{ fill: '#6b7280', fontSize: 9 }}
+                tick={{ fill: '#6b7280', fontSize: 11 }}
                 axisLine={{ stroke: '#e5e7eb' }}
                 tickLine={false}
                 angle={-45}
@@ -198,21 +210,33 @@ export default function Heatmap({ tissue, scoringData, interpretationData, isMob
                 width={40}
               />
               <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(0,0,0,0.03)' }} />
-              <Bar dataKey="score" radius={[2, 2, 0, 0]} maxBarSize={20} shape={(props) => {
+              <Bar dataKey="score" radius={[2, 2, 0, 0]} maxBarSize={24} shape={(props) => {
                 const { x, y, width, height, index } = props
                 const entry = barData[index]
                 const fill = CATEGORY_COLORS[entry.category]
-                const op = entry.isTarget ? 1 : 0.6
+                const op = entry.isTarget ? 1 : 0.25
                 return (
                   <g>
                     <rect x={x} y={y} width={width} height={height} fill={fill} opacity={op} rx={2} ry={2} />
                     {entry.isTarget && (
-                      <path
-                        d={`M${x},${y + height} L${x},${y + 2} Q${x},${y} ${x + 2},${y} L${x + width - 2},${y} Q${x + width},${y} ${x + width},${y + 2} L${x + width},${y + height}`}
-                        fill="none"
-                        stroke={HIGHLIGHT_BORDER}
-                        strokeWidth={2}
-                      />
+                      <>
+                        <path
+                          d={`M${x},${y + height} L${x},${y + 2} Q${x},${y} ${x + 2},${y} L${x + width - 2},${y} Q${x + width},${y} ${x + width},${y + 2} L${x + width},${y + height}`}
+                          fill="none"
+                          stroke={HIGHLIGHT_BORDER}
+                          strokeWidth={2}
+                        />
+                        <text
+                          x={x + width / 2}
+                          y={y - 6}
+                          textAnchor="middle"
+                          fill="#002FA7"
+                          fontSize={10}
+                          fontWeight={700}
+                        >
+                          ★
+                        </text>
+                      </>
                     )}
                   </g>
                 )
@@ -220,6 +244,22 @@ export default function Heatmap({ tissue, scoringData, interpretationData, isMob
             </BarChart>
           </ResponsiveContainer>
         </div>
+      </div>
+
+      {/* Color legend */}
+      <div
+        className="glass flex flex-wrap gap-4 text-xs"
+        style={{ color: '#6b7280', padding: '8px 14px', borderRadius: 12, marginTop: 6, ...(isMobile ? { marginLeft: 8, marginRight: 8 } : {}) }}
+      >
+        {HISTOGRAM_LEGEND.map((item) => (
+          <div key={item.label} className="flex items-center gap-1.5">
+            <div
+              className="rounded-sm shrink-0"
+              style={{ width: 12, height: 12, background: item.color }}
+            />
+            <span>{item.label}</span>
+          </div>
+        ))}
       </div>
     </div>
   )

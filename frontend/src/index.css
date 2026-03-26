@@ -43,7 +43,7 @@ html, body {
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: #0891b2;
+  background: #002FA7;
   margin: 0 2px;
   animation: pulse-dot 1.4s ease-in-out infinite;
 }
