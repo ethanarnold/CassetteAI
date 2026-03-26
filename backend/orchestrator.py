@@ -202,7 +202,15 @@ _CLASSIFY_SYSTEM = (
     '- "How does Sei scoring work?" -> {"type": "conversation"}\n'
     '- "Design a liver enhancer" -> {"type": "design", ...}\n'
     '- "I need an immune-specific regulatory element" -> {"type": "design", ...}\n'
-    '- "Generate blood enhancers for AAV delivery" -> {"type": "design", ...}'
+    '- "Generate blood enhancers for AAV delivery" -> {"type": "design", ...}\n\n'
+    "Follow-up messages after a previous design run that name a tissue "
+    "are ALSO design requests — the user wants the same pipeline run "
+    "for a different tissue:\n"
+    '- "liver?" -> {"type": "design", "target_tissue": "liver", "length_bp": 200, "constraints": []}\n'
+    '- "what about blood?" -> {"type": "design", "target_tissue": "blood", "length_bp": 200, "constraints": []}\n'
+    '- "same thing but for immune cells" -> {"type": "design", "target_tissue": "immune", "length_bp": 200, "constraints": []}\n'
+    '- "now do cardiac" -> {"type": "design", "target_tissue": "cardiac", "length_bp": 200, "constraints": []}\n'
+    '- "try stem cells" -> {"type": "design", "target_tissue": "stem cell", "length_bp": 200, "constraints": []}'
 )
 
 _CONVERSATION_SYSTEM = (
@@ -214,7 +222,18 @@ _CONVERSATION_SYSTEM = (
     "Respond to the user's conversational message in 2-4 sentences. "
     "Be friendly and informative. Do not use emojis or markdown. "
     "Reference conversation history when answering follow-up questions "
-    "about previous results or designs."
+    "about previous results or designs.\n\n"
+    "CRITICAL RULES:\n"
+    "- NEVER simulate, roleplay, or mimic pipeline execution.\n"
+    "- NEVER generate fake DNA sequences, Sei scores, specificity "
+    "ratios, GC percentages, or any biological data.\n"
+    "- NEVER pretend that DNA-Diffusion or Sei ran when they did not.\n"
+    "- If the user seems to want a new design for a different tissue, "
+    "suggest they submit a clear design request (e.g., 'Would you like "
+    "me to design a liver-specific enhancer? Just say the word and "
+    "I will run the full pipeline.').\n"
+    "- Only the real pipeline (DNA-Diffusion + Sei) produces real data. "
+    "You must never fabricate results under any circumstances."
 )
 
 
@@ -323,6 +342,7 @@ async def _stream_paraphrase(
     length_bp: int,
     constraints: list[str],
     plan_text: str,
+    history: list[dict[str, str]] | None = None,
 ) -> AsyncGenerator[dict[str, Any], None]:
     """Stream the paraphrase + plan text token-by-token.
 
@@ -336,6 +356,13 @@ async def _stream_paraphrase(
     constraint_note = f" Constraints: {', '.join(constraints)}." if constraints else ""
 
     yield {"type": "stream_start", "stage": "parsing"}
+
+    trimmed = _trim_history_for_classifier(history)
+    messages = _build_messages(
+        f"Original request: {user_prompt}\n\n"
+        f"Parsed parameters: tissue={tissue}.{constraint_note}",
+        trimmed,
+    )
 
     try:
         async with client.messages.stream(
@@ -351,15 +378,7 @@ async def _stream_paraphrase(
                 "Do not use emojis. Do not use markdown formatting. "
                 "Speak in the first person (e.g. 'I understand you want...')."
             ),
-            messages=[
-                {
-                    "role": "user",
-                    "content": (
-                        f"Original request: {user_prompt}\n\n"
-                        f"Parsed parameters: tissue={tissue}.{constraint_note}"
-                    ),
-                }
-            ],
+            messages=messages,
         ) as stream:
             async for text in stream.text_stream:
                 yield {"type": "stream_delta", "delta": text}
@@ -429,7 +448,7 @@ async def run_pipeline(
         f"then scoring each one with Sei across 40 regulatory tissue classes "
         f"to find the most tissue-specific element.{constraint_note}"
     )
-    async for event in _stream_paraphrase(user_prompt, tissue, length_bp, constraints, plan_text):
+    async for event in _stream_paraphrase(user_prompt, tissue, length_bp, constraints, plan_text, history=history):
         yield event
 
     # ── Step 2: Design (UX pacing beat) ─────────────────────────────────
