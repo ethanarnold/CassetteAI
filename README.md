@@ -18,8 +18,8 @@ CassetteAI is a no-code way to design these DNA elements: Just describe the tiss
 
 - **Conversational design** — describe your gene therapy goal in plain English and get a complete cassette design back
 - **Biological reasoning** — CassetteAI can reason over and explain the data and designs it generates
-- **Real generative models** — DNA-Diffusion generates novel 200 bp regulatory elements conditioned on cell type (HepG2, K562, GM12878, hESCT0)
-- **Genome-wide scoring** — Sei evaluates each candidate across 21,907 chromatin profiles grouped into 40 tissue/cell-type classes
+- **Real generative models** — [DNA-Diffusion](https://github.com/pinellolab/DNA-Diffusion) generates novel 200 bp regulatory elements conditioned on cell type (HepG2, K562, GM12878, hESCT0)
+- **Genome-wide scoring** — [Sei](https://github.com/FunctionLab/sei-framework) evaluates each candidate across 21,907 chromatin profiles grouped into 40 tissue/cell-type classes
 - **AI interpretation** — Claude Sonnet ranks candidates by tissue specificity, flags sequence pathologies (GC content, homopolymers, cryptic polyA), and recommends a final element
 - **Cassette composition** — automatically pairs the top element with a minimal promoter, transgene placeholder, polyA signal, and ITRs, with a size check against the 4.7 kb AAV limit
 - **Interactive heatmap** — Tissue-specificity scores are visualized in a clean histogram
