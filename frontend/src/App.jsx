@@ -34,6 +34,7 @@ function LandingPage({ onNewChat, isNarrow }) {
   return (
     <div
       style={{
+        position: 'relative',
         height: '100%',
         display: 'flex',
         flexDirection: 'column',
@@ -63,6 +64,17 @@ function LandingPage({ onNewChat, isNarrow }) {
           setLoading={setLoading}
           isNarrow={isNarrow}
         />
+      </div>
+      <div
+        style={{
+          position: 'absolute',
+          bottom: 12,
+          right: 16,
+          fontSize: 11,
+          color: '#aaa',
+        }}
+      >
+        MIT License · © 2026 Ethan Arnold
       </div>
     </div>
   )

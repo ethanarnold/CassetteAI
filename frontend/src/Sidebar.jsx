@@ -178,6 +178,11 @@ export default function Sidebar({
             />
           ))}
         </div>
+
+        {/* Footer */}
+        <div style={{ padding: '12px 20px', fontSize: 11, color: '#aaa' }}>
+          MIT · © 2026 Ethan Arnold
+        </div>
       </div>
     </div>
     </>
