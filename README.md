@@ -2,7 +2,7 @@
   <img src="frontend/src/assets/cassetteai-banner.png" alt="CassetteAI" />
 </p>
 
-# CassetteAI — Toward safer gene therapies
+---
 
 **Live demo:** [cassetteai.dev](https://cassetteai.dev)
 
