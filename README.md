@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="frontend/src/assets/cassetteai-banner.png" alt="CassetteAI" />
+</p>
+
 # CassetteAI — Toward safer gene therapies
 
 **Live demo:** [cassetteai.dev](https://cassetteai.dev)
@@ -7,12 +11,6 @@ Life science has produced a **lot** of machine learning models, but most of them
 DNA-based drugs are an important category of therapeutics, but getting them to activate in the right tissue, and only that tissue, remains a major challenge. Short DNA sequences called enhancers act as molecular zip codes, telling a gene where and when to turn on.
 
 CassetteAI is a no-code way to design these DNA elements: Just describe the tissue type you'd like to target, and CassetteAI deploys multiple genomics models on serverless GPUs to translate your natural language prompt into tissue-specific enhancers, score them, and present the best ones.
-
----
-
-<p align="center">
-  <img src="frontend/src/assets/dna-helix-thick.png" alt="CassetteAI logo" width="200" />
-</p>
 
 ---
 
